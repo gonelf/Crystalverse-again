@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS } from '../config';
 import { LEVEL, TILE_SIZE, type TileRect } from '../level';
+import { HeartPickup } from '../HeartPickup';
 import { Mob } from '../Mob';
 import { Player } from '../Player';
 import { SplitScreen } from '../SplitScreen';
@@ -20,6 +21,7 @@ export class GameScene extends Phaser.Scene {
   private mobs: Mob[] = [];
   /** Invisible walls over the merge zones that keep mobs out, so plazas are safe. */
   private safeZones!: Phaser.Physics.Arcade.StaticGroup;
+  private pickups!: Phaser.Physics.Arcade.Group;
   private lastHp = '';
 
   constructor() {
@@ -103,6 +105,13 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.mobs, solid);
     this.physics.add.collider(this.mobs, this.safeZones);
     this.physics.add.collider(this.mobs, this.mobs);
+
+    // Hearts dropped by mobs. Only a hurt player picks one up, so a player at
+    // full health leaves it for their partner.
+    this.pickups = this.physics.add.group();
+    this.physics.add.overlap(this.players, this.pickups, (a, b) => {
+      if ((a as Player).heal(1)) (b as HeartPickup).destroy();
+    });
     this.physics.add.overlap(this.players, this.mobs, (a, b) => {
       const player = a as Player;
       const mob = b as Mob;
@@ -121,7 +130,12 @@ export class GameScene extends Phaser.Scene {
       if (!mob.alive || !Phaser.Geom.Rectangle.Overlaps(swing, new Phaser.Geom.Rectangle(x, y, width, height))) {
         continue;
       }
-      if (mob.hit(1, player.feet)) this.scheduleRespawn(mob);
+      if (mob.hit(1, player.feet)) {
+        if (Math.random() < mob.stats.heartDropChance) {
+          this.pickups.add(new HeartPickup(this, mob.x, mob.y));
+        }
+        this.scheduleRespawn(mob);
+      }
       this.split.cameraOf(index).shake(60, 0.002);
     }
   }

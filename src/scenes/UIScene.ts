@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
 import { PLAYER_COLORS, PLAYER_MAX_HP } from '../config';
+import { HEART, HEART_COLOR } from '../heart';
 import { Minimap } from '../Minimap';
 import { HEALTH_EVENT, PLAYERS_MOVED_EVENT, SPLIT_PROGRESS_EVENT } from './GameScene';
 
-/** 7x6 pixel heart, drawn at HEART_SCALE. */
-const HEART = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
 const HEART_SCALE = 3;
 const HEART_GAP = 4;
 
@@ -79,7 +78,7 @@ export class UIScene extends Phaser.Scene {
       g.generateTexture(key, HEART[0].length * HEART_SCALE + 1, HEART.length * HEART_SCALE + 1);
       g.destroy();
     };
-    draw('heart-full', 0xe83b3b, 1);
+    draw('heart-full', HEART_COLOR, 1);
     draw('heart-empty', 0x3a2a2a, 0.9);
   }
 

@@ -33,3 +33,5 @@ export const MOB_LOSE_RANGE = 130;
 export const MOB_LEASH = 72;
 /** A killed mob comes back at its spawn after this long, once no player is nearby. */
 export const MOB_RESPAWN_MS = 12000;
+/** How long a heart dropped by a mob stays on the ground, in ms. */
+export const HEART_PICKUP_LIFETIME_MS = 10000;

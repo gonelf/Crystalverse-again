@@ -12,13 +12,15 @@ interface MobStats {
   hp: number;
   wanderSpeed: number;
   chaseSpeed: number;
+  /** Chance (0-1) of leaving a heart behind when killed. */
+  heartDropChance: number;
   /** Row in slime.png. */
   row: number;
 }
 
 const STATS: Record<MobKind, MobStats> = {
-  green: { hp: 2, wanderSpeed: 18, chaseSpeed: 42, row: 0 },
-  purple: { hp: 4, wanderSpeed: 22, chaseSpeed: 56, row: 1 },
+  green: { hp: 2, wanderSpeed: 18, chaseSpeed: 42, heartDropChance: 0.35, row: 0 },
+  purple: { hp: 4, wanderSpeed: 22, chaseSpeed: 56, heartDropChance: 0.75, row: 1 },
 };
 
 /** slime.png: 4 columns of 16x16 frames, one row per kind. */

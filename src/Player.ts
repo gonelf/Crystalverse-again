@@ -171,6 +171,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return true;
   }
 
+  /** Restore up to `amount` hearts. Returns false if already at full health (or fainted). */
+  heal(amount: number): boolean {
+    if (!this.alive || this.hp >= PLAYER_MAX_HP) return false;
+    this.hp = Math.min(PLAYER_MAX_HP, this.hp + amount);
+    return true;
+  }
+
   private startAttack(): Phaser.Geom.Rectangle {
     this.attackingUntil = this.scene.time.now + PLAYER_ATTACK_MS;
     this.setVelocity(0, 0);

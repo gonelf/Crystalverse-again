@@ -8,7 +8,8 @@ bridge the river), the two viewports merge into one shared view. They split agai
 when either player leaves.
 
 Each meadow has slimes that wander, chase a player who gets close and cost a
-heart on contact. Players fight back with a sword. Merge zones are safe: mobs
+heart on contact. Players fight back with a sword. Killed slimes sometimes
+drop a heart that heals whichever hurt player picks it up. Merge zones are safe: mobs
 can't enter them.
 
 Art is ArMM1998's CC0 [Zelda-like tilesets and sprites](https://opengameart.org/content/zelda-like-tilesets-and-sprites)
@@ -53,6 +54,9 @@ Browsers only expose a gamepad after you press a button on it.
   player within `MOB_AGGRO_RANGE`, and gets knocked back and stunned when hit.
   Mob spawns come from `LEVEL.mobs`; killed mobs respawn after
   `MOB_RESPAWN_MS` once nobody is standing near their spawn.
+- `src/HeartPickup.ts` is the heart a killed mob may drop (`heartDropChance`
+  per kind in `src/Mob.ts`). It heals one heart, is ignored by a player at
+  full health, and vanishes after `HEART_PICKUP_LIFETIME_MS`.
 - `src/scenes/UIScene.ts` draws the screen-space overlay (divider, labels,
   hearts, minimaps, "LINKED" banner).
 - `src/Minimap.ts` draws the whole level once into a small texture and shows

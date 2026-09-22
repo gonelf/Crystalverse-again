@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MERGE_DURATION, MERGE_FRAMING_MARGIN, MERGE_MIN_ZOOM } from './config';
+import { BASE_ZOOM, MERGE_DURATION, MERGE_FRAMING_MARGIN, MERGE_MIN_ZOOM } from './config';
 
 type GameObject = Phaser.GameObjects.GameObject;
 type Camera = Phaser.Cameras.Scene2D.Camera;
@@ -16,7 +16,8 @@ function setVisibleOn(camera: Camera, obj: GameObject, visible: boolean): void {
  * - Split: the left camera follows P1, the right camera follows P2, and each
  *   camera hides the other player (and anything registered with `hideFromOther`).
  * - Merged: the left camera widens to fill the screen, follows the midpoint of
- *   both players and zooms out to fit them. The right camera slides away.
+ *   both players and zooms out (down to MERGE_MIN_ZOOM) to fit them. The right
+ *   camera slides away.
  *
  * `progress` runs from 0 (split) to 1 (merged) and can reverse mid-transition,
  * so walking back out of a merge zone halfway through the animation is smooth.
@@ -45,10 +46,10 @@ export class SplitScreen {
 
     for (const cam of [this.left, this.right]) {
       cam.setBounds(worldBounds.x, worldBounds.y, worldBounds.width, worldBounds.height);
-      cam.setBackgroundColor(0x0b0d14);
+      cam.setBackgroundColor(0x0b0d14).setZoom(BASE_ZOOM);
     }
-    this.left.startFollow(this.focus, false, 0.15, 0.15);
-    this.right.startFollow(p2, false, 0.15, 0.15);
+    this.left.startFollow(this.focus, true, 0.15, 0.15);
+    this.right.startFollow(p2, true, 0.15, 0.15);
 
     this.hideFromOther(0, p1);
     this.hideFromOther(1, p2);
@@ -112,7 +113,7 @@ export class SplitScreen {
       width / (Math.abs(p1.x - p2.x) + MERGE_FRAMING_MARGIN),
       height / (Math.abs(p1.y - p2.y) + MERGE_FRAMING_MARGIN),
     );
-    const mergedZoom = Phaser.Math.Clamp(fit, MERGE_MIN_ZOOM, 1);
-    left.setZoom(Phaser.Math.Linear(1, mergedZoom, e));
+    const mergedZoom = Phaser.Math.Clamp(fit, MERGE_MIN_ZOOM, BASE_ZOOM);
+    left.setZoom(Phaser.Math.Linear(BASE_ZOOM, mergedZoom, e));
   }
 }

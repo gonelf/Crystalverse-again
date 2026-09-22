@@ -16,7 +16,13 @@ export class UIScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.divider = this.add.rectangle(width / 2, height / 2, 6, height, 0x000000);
 
-    const style = { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff' };
+    const style = {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4,
+    };
     const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
     this.labels = [
       this.add.text(16, 12, 'P1  WASD / pad 1', { ...style, color: hex(PLAYER_COLORS[0]) }),

@@ -56,8 +56,8 @@ Browsers only expose a gamepad after you press a button on it.
 - `src/scenes/UIScene.ts` draws the screen-space overlay (divider, labels,
   hearts, minimaps, "LINKED" banner).
 - `src/Minimap.ts` draws the whole level once into a small texture and shows
-  both players on it, with a pulsing ring on the partner, so split players can
-  find each other and the plazas. Each half gets one in its bottom outer
-  corner; they fade out once the views merge.
+  only its own player on it, so players can find the plazas and describe
+  where they are without seeing each other. Each half gets one in its bottom
+  outer corner; they fade out once the views merge.
 - `src/config.ts` has the tuning values (zoom, speed, merge duration, zoom
   limits, health, knockback, mob ranges). Per-kind mob stats live in `src/Mob.ts`.

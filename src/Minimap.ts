@@ -42,41 +42,28 @@ function ensureTerrainTexture(scene: Phaser.Scene): string {
 }
 
 /**
- * A small map of the whole level for one player's viewport. It shows both
- * players, so each can find the other, with the owner's dot drawn on top and a
- * pulsing ring around the partner.
+ * A small map of the whole level for one player's viewport. It only shows its
+ * own player, like the split view itself, so players find each other by
+ * describing where they are and heading for the plazas.
  */
 export class Minimap extends Phaser.GameObjects.Container {
   static readonly width = LEVEL.cols * SCALE + PADDING * 2;
   static readonly height = LEVEL.rows * SCALE + PADDING * 2;
 
-  private readonly dots: [Phaser.GameObjects.Rectangle, Phaser.GameObjects.Rectangle];
-  private readonly ring: Phaser.GameObjects.Arc;
+  private readonly dot: Phaser.GameObjects.Rectangle;
 
   constructor(scene: Phaser.Scene, x: number, y: number, private readonly owner: 0 | 1) {
     super(scene, x, y);
     const frame = scene.add.rectangle(0, 0, Minimap.width, Minimap.height, COLORS.frame, 0.6).setOrigin(0);
     const terrain = scene.add.image(PADDING, PADDING, ensureTerrainTexture(scene)).setOrigin(0).setAlpha(0.9);
-    this.dots = [0, 1].map((i) =>
-      scene.add.rectangle(0, 0, 6, 6, PLAYER_COLORS[i]).setStrokeStyle(1, 0xffffff),
-    ) as [Phaser.GameObjects.Rectangle, Phaser.GameObjects.Rectangle];
-    const partner = this.dots[1 - owner];
-    this.ring = scene.add.circle(0, 0, 5).setStrokeStyle(1, PLAYER_COLORS[1 - owner]);
-    scene.tweens.add({ targets: this.ring, scale: 2.2, alpha: 0, duration: 900, repeat: -1 });
-    // Owner last so it's on top when both dots overlap.
-    this.add([frame, terrain, this.ring, partner, this.dots[owner]]);
+    this.dot = scene.add.rectangle(0, 0, 6, 6, PLAYER_COLORS[owner]).setStrokeStyle(1, 0xffffff);
+    this.add([frame, terrain, this.dot]);
     scene.add.existing(this);
   }
 
-  /** Move the dots to the players' world positions. */
+  /** Move the dot to the owner's world position. `positions` holds both players. */
   setPlayers(positions: readonly { x: number; y: number }[]): void {
-    positions.forEach((p, i) => {
-      this.dots[i].setPosition(
-        PADDING + (p.x / TILE_SIZE) * SCALE,
-        PADDING + (p.y / TILE_SIZE) * SCALE,
-      );
-    });
-    const partner = this.dots[1 - this.owner];
-    this.ring.setPosition(partner.x, partner.y);
+    const p = positions[this.owner];
+    this.dot.setPosition(PADDING + (p.x / TILE_SIZE) * SCALE, PADDING + (p.y / TILE_SIZE) * SCALE);
   }
 }

@@ -99,7 +99,7 @@ export class UIScene extends Phaser.Scene {
     this.divider.setX(width / 2 + (e * width) / 2).setAlpha(1 - e);
     // P2's hearts stay put so both players can still see their health when merged.
     this.labels[1].setX(width - 16 + (e * width) / 2);
-    // Minimaps are for finding each other, so they fade out once merged. P2's
+    // Minimaps are for finding the plazas, so they fade out once merged. P2's
     // rides the sliding right viewport like its label.
     this.minimaps[1].setX(width - MINIMAP_MARGIN - Minimap.width + (e * width) / 2);
     for (const m of this.minimaps) m.setAlpha(1 - e);

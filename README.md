@@ -7,6 +7,11 @@ players stand in the same **merge zone** (the shimmering stone plazas that
 bridge the river), the two viewports merge into one shared view. They split again
 when either player leaves.
 
+Each meadow has slimes that wander, chase a player who gets close and cost a
+heart on contact. Players fight back with a sword. Killed slimes sometimes
+drop a heart that heals whichever hurt player picks it up. Merge zones are safe: mobs
+can't enter them.
+
 Art is ArMM1998's CC0 [Zelda-like tilesets and sprites](https://opengameart.org/content/zelda-like-tilesets-and-sprites)
 pack. See `public/assets/CREDITS.md`.
 
@@ -20,10 +25,10 @@ npm run build      # typecheck + production build into dist/
 
 ## Controls
 
-| Player | Keyboard   | Gamepad                 |
-|--------|------------|-------------------------|
-| P1     | WASD       | 1st pad (stick / d-pad) |
-| P2     | Arrow keys | 2nd pad (stick / d-pad) |
+| Player | Move       | Attack | Gamepad                          |
+|--------|------------|--------|----------------------------------|
+| P1     | WASD       | Space  | 1st pad (stick / d-pad, A or X)  |
+| P2     | Arrow keys | Enter  | 2nd pad (stick / d-pad, A or X)  |
 
 Browsers only expose a gamepad after you press a button on it.
 
@@ -41,8 +46,22 @@ Browsers only expose a gamepad after you press a button on it.
   indices point into `public/assets/overworld.png`, which has 40 tiles per row.
   The layers map directly onto a Tiled map: the same three layers plus an object
   layer of merge-zone rectangles.
-- `src/Player.ts` handles movement plus 4-direction walk/idle animations from
-  the 16x32 character sheet. Only the player's feet collide.
+- `src/Player.ts` handles movement, sword swings, hearts and knockback, with
+  4-direction walk/idle animations from the 16x32 character sheet and attack
+  animations from the same sheet cut into 32x32 frames. Only the player's feet
+  collide. A player who runs out of hearts respawns at their start point.
+- `src/Mob.ts` is the slime: it wanders near its spawn, chases the nearest
+  player within `MOB_AGGRO_RANGE`, and gets knocked back and stunned when hit.
+  Mob spawns come from `LEVEL.mobs`; killed mobs respawn after
+  `MOB_RESPAWN_MS` once nobody is standing near their spawn.
+- `src/HeartPickup.ts` is the heart a killed mob may drop (`heartDropChance`
+  per kind in `src/Mob.ts`). It heals one heart, is ignored by a player at
+  full health, and vanishes after `HEART_PICKUP_LIFETIME_MS`.
 - `src/scenes/UIScene.ts` draws the screen-space overlay (divider, labels,
-  "LINKED" banner).
-- `src/config.ts` has the tuning values (zoom, speed, merge duration, zoom limits).
+  hearts, minimaps, "LINKED" banner).
+- `src/Minimap.ts` draws the whole level once into a small texture and shows
+  only its own player on it, so players can find the plazas and describe
+  where they are without seeing each other. Each half gets one in its bottom
+  outer corner; they fade out once the views merge.
+- `src/config.ts` has the tuning values (zoom, speed, merge duration, zoom
+  limits, health, knockback, mob ranges). Per-kind mob stats live in `src/Mob.ts`.

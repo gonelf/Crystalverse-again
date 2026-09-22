@@ -30,3 +30,22 @@ export const SHARED_VIEW_MIN_ZOOM = 1.4;
 
 /** Plate / door group colours, assigned in the order groups appear in a level. */
 export const PUZZLE_COLORS = [0x8ad8ff, 0xffd166, 0xb388ff, 0x7ce38b] as const;
+
+export const PLAYER_MAX_HP = 5;
+/** How long a player blinks and can't be hurt again after a hit, in ms. */
+export const PLAYER_INVULNERABLE_MS = 1000;
+/** How long a sword swing lasts; the player can't move meanwhile. */
+export const PLAYER_ATTACK_MS = 260;
+/** Knockback speed for anything that gets hit, in px/s. */
+export const KNOCKBACK_SPEED = 220;
+export const KNOCKBACK_MS = 160;
+
+/** Mobs notice a player within this distance (px) and give up past MOB_LOSE_RANGE. */
+export const MOB_AGGRO_RANGE = 80;
+export const MOB_LOSE_RANGE = 130;
+/** Wandering mobs stay roughly this close (px) to where they spawned. */
+export const MOB_LEASH = 72;
+/** A killed mob comes back at its spawn after this long, once no player is nearby. */
+export const MOB_RESPAWN_MS = 12000;
+/** How long a heart dropped by a mob stays on the ground, in ms. */
+export const HEART_PICKUP_LIFETIME_MS = 10000;

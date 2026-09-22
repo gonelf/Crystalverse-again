@@ -114,6 +114,7 @@ function build(): LevelData {
     decor,
     solid,
     mergeZones: [],
+    mobs: [],
     // Dungeons are explored together: one camera, both players always in frame.
     sharedView: true,
     plates,

@@ -17,6 +17,12 @@ export interface TileRect {
   rows: number;
 }
 
+export type MobKind = 'green' | 'purple';
+
+export interface MobSpawn extends TilePos {
+  kind: MobKind;
+}
+
 /** A pressure plate. Every plate of a group must be held for that group's doors to open. */
 export interface PlateSpec extends TilePos {
   group: string;
@@ -56,6 +62,8 @@ export interface LevelData {
   solid: number[][];
   /** Areas where the two viewports merge into one when both players stand inside. */
   mergeZones: TileRect[];
+  /** Where mobs start and respawn. Mobs never enter merge zones. */
+  mobs: MobSpawn[];
   /** True for levels the players always share a single camera in (dungeons). */
   sharedView: boolean;
   plates: PlateSpec[];

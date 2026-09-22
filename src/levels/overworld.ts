@@ -1,4 +1,11 @@
-import { inRect, mulberry32, type ExitSpec, type LevelData, type TileRect } from './types';
+import {
+  inRect,
+  mulberry32,
+  type ExitSpec,
+  type LevelData,
+  type MobSpawn,
+  type TileRect,
+} from './types';
 
 /** Tile indices into public/assets/overworld.png (40 tiles per row). */
 const TILES = {
@@ -26,6 +33,10 @@ const SPAWNS: LevelData['spawns'] = [
   { col: 12, row: 25 },
   { col: 67, row: 25 },
 ];
+/** Mobs per meadow. Every third one is the tougher purple kind. */
+const MOBS_PER_SIDE = 7;
+/** Keep mobs at least this many tiles away from the player spawns. */
+const MOB_SPAWN_CLEARANCE = 10;
 
 /** Stairs down into the dungeon, in the middle of the northern plaza. */
 const DUNGEON_ENTRANCE: ExitSpec = {
@@ -91,6 +102,19 @@ function generate(): LevelData {
     }
   }
 
+  const mobs: MobSpawn[] = [];
+  for (const [minCol, maxCol] of [[2, RIVER.from - 2], [RIVER.to + 2, COLS - 3]]) {
+    for (let placed = 0; placed < MOBS_PER_SIDE; ) {
+      const c = minCol + Math.floor(rand() * (maxCol - minCol + 1));
+      const r = 2 + Math.floor(rand() * (ROWS - 4));
+      const clear = solid[r][c] === -1 && !inPlaza(c, r, 3) &&
+        SPAWNS.every((s) => Math.hypot(s.col - c, s.row - r) >= MOB_SPAWN_CLEARANCE);
+      if (!clear) continue;
+      mobs.push({ col: c, row: r, kind: placed % 3 === 2 ? 'purple' : 'green' });
+      placed++;
+    }
+  }
+
   return {
     id: 'overworld',
     name: 'Crystalverse',
@@ -104,6 +128,7 @@ function generate(): LevelData {
     solid,
     mergeZones: MERGE_ZONES,
     sharedView: false,
+    mobs,
     plates: [],
     crates: [],
     doors: [],

@@ -76,6 +76,11 @@ export class SplitScreen {
     return this.progress >= 1;
   }
 
+  /** The camera currently showing player `owner` (0 or 1). */
+  cameraOf(owner: 0 | 1): Camera {
+    return owner === 0 || this.merged ? this.left : this.right;
+  }
+
   /**
    * Register objects that only one player may see while split, e.g. that
    * player's avatar, private clues or hidden paths. `owner` is 0 (left) or 1 (right).

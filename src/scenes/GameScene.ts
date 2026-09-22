@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { SHARED_VIEW_MIN_ZOOM } from '../config';
+import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS, SHARED_VIEW_MIN_ZOOM } from '../config';
 import { createGeneratedTextures, DUNGEON_TILESET, TEXTURES } from '../graphics/textures';
+import { HeartPickup } from '../HeartPickup';
 import {
   isLevelId,
   LEVELS,
@@ -12,12 +13,17 @@ import {
   type TilePos,
   type TileRect,
 } from '../levels';
+import { Mob } from '../Mob';
 import { Player } from '../Player';
 import { PuzzleSystem } from '../puzzle/PuzzleSystem';
 import { SplitScreen } from '../SplitScreen';
 import { UI_STATE, type LevelState } from '../uiState';
 
 export const SPLIT_PROGRESS_EVENT = 'split-progress';
+/** Emitted every frame with both players, for the minimaps. */
+export const PLAYERS_MOVED_EVENT = 'players-moved';
+/** Emitted with `[p1Hp, p2Hp]` whenever either player's health changes. */
+export const HEALTH_EVENT = 'player-health';
 
 const PLAYER_TEXTURES = ['hero', 'hero-p2'] as const;
 const FADE_MS = 280;
@@ -35,6 +41,11 @@ export class GameScene extends Phaser.Scene {
   private puzzle?: PuzzleSystem;
   private mergeZones: Phaser.Geom.Rectangle[] = [];
   private exits: Array<{ spec: ExitSpec; area: Phaser.Geom.Rectangle }> = [];
+  private mobs: Mob[] = [];
+  /** Invisible walls over the merge zones that keep mobs out, so plazas are safe. */
+  private safeZones!: Phaser.Physics.Arcade.StaticGroup;
+  private pickups!: Phaser.Physics.Arcade.Group;
+  private lastHp = '';
   private travelling = false;
   private from?: LevelId;
 
@@ -47,7 +58,9 @@ export class GameScene extends Phaser.Scene {
     this.from = data.from;
     this.mergeZones = [];
     this.exits = [];
+    this.mobs = [];
     this.puzzle = undefined;
+    this.lastHp = '';
     this.travelling = false;
   }
 
@@ -56,6 +69,10 @@ export class GameScene extends Phaser.Scene {
     const frame = { frameWidth: 16, frameHeight: 32 };
     this.load.spritesheet('hero', 'assets/character.png', frame);
     this.load.spritesheet('hero-p2', 'assets/character-p2.png', frame);
+    const attackFrame = { frameWidth: 32, frameHeight: 32 };
+    this.load.spritesheet('hero-attack', 'assets/character.png', attackFrame);
+    this.load.spritesheet('hero-p2-attack', 'assets/character-p2.png', attackFrame);
+    this.load.spritesheet('slime', 'assets/slime.png', { frameWidth: 16, frameHeight: 16 });
   }
 
   create(): void {
@@ -67,6 +84,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, width, height);
 
     const solid = this.buildTilemap();
+    this.safeZones = this.physics.add.staticGroup();
     for (const zone of level.mergeZones) this.addMergeZone(zone);
     for (const exit of level.exits) this.addExit(exit);
 
@@ -77,6 +95,7 @@ export class GameScene extends Phaser.Scene {
       this.puzzle = new PuzzleSystem(this, level, this.players);
       this.physics.add.collider(this.players, this.puzzle.obstacles);
     }
+    this.spawnMobs(solid);
 
     this.split = new SplitScreen(
       this,
@@ -101,12 +120,79 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  update(_time: number, delta: number): void {
-    for (const player of this.players) player.update();
+  update(time: number, delta: number): void {
+    this.players.forEach((p, i) => {
+      const swing = p.update();
+      if (swing) this.swordHits(p, swing, i as 0 | 1);
+    });
+    for (const m of this.mobs) m.update(time, this.players);
     this.puzzle?.update(delta);
     this.split.update(this.level.sharedView || this.bothInSameMergeZone(), delta);
     this.game.events.emit(SPLIT_PROGRESS_EVENT, this.split.progress);
+    this.game.events.emit(PLAYERS_MOVED_EVENT, this.players);
+
+    const hp = this.players.map((p) => p.hp);
+    if (hp.join() !== this.lastHp) {
+      this.lastHp = hp.join();
+      this.game.events.emit(HEALTH_EVENT, hp);
+    }
     this.checkExits();
+  }
+
+  private spawnMobs(solid: Phaser.Tilemaps.TilemapLayer): void {
+    Mob.createAnimations(this);
+    this.mobs = this.level.mobs.map(({ col, row, kind }) => new Mob(
+      this,
+      new Phaser.Math.Vector2((col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE),
+      kind,
+    ));
+    this.physics.add.collider(this.mobs, solid);
+    this.physics.add.collider(this.mobs, this.safeZones);
+    this.physics.add.collider(this.mobs, this.mobs);
+    if (this.puzzle) this.physics.add.collider(this.mobs, this.puzzle.obstacles);
+
+    // Hearts dropped by mobs. Only a hurt player picks one up, so a player at
+    // full health leaves it for their partner.
+    this.pickups = this.physics.add.group();
+    this.physics.add.overlap(this.players, this.pickups, (a, b) => {
+      if ((a as Player).heal(1)) (b as HeartPickup).destroy();
+    });
+    this.physics.add.overlap(this.players, this.mobs, (a, b) => {
+      const player = a as Player;
+      const mob = b as Mob;
+      if (!mob.alive || mob.stunned) return;
+      const index = this.players.indexOf(player) as 0 | 1;
+      if (player.hurt(1, mob)) {
+        mob.recoil(player);
+        this.split.cameraOf(index).shake(120, 0.004);
+      }
+    });
+  }
+
+  private swordHits(player: Player, swing: Phaser.Geom.Rectangle, index: 0 | 1): void {
+    for (const mob of this.mobs) {
+      const { x, y, width, height } = mob.body;
+      if (!mob.alive || !Phaser.Geom.Rectangle.Overlaps(swing, new Phaser.Geom.Rectangle(x, y, width, height))) {
+        continue;
+      }
+      if (mob.hit(1, player.feet)) {
+        if (Math.random() < mob.stats.heartDropChance) {
+          this.pickups.add(new HeartPickup(this, mob.x, mob.y));
+        }
+        this.scheduleRespawn(mob);
+      }
+      this.split.cameraOf(index).shake(60, 0.002);
+    }
+  }
+
+  /** Respawn a killed mob after a while, waiting until no player is standing near its spawn. */
+  private scheduleRespawn(mob: Mob): void {
+    this.time.delayedCall(MOB_RESPAWN_MS, () => {
+      const crowded = this.players.some((p) =>
+        Phaser.Math.Distance.Between(p.x, p.y, mob.home.x, mob.home.y) < MOB_AGGRO_RANGE * 2);
+      if (crowded) this.scheduleRespawn(mob);
+      else mob.respawn();
+    });
   }
 
   /** Builds the ground, decor and solid layers and returns the collidable one. */
@@ -141,10 +227,10 @@ export class GameScene extends Phaser.Scene {
     }));
     return [
       new Player(this, s1.x, s1.y, PLAYER_TEXTURES[0], {
-        up: 'W', down: 'S', left: 'A', right: 'D', padIndex: 0,
+        up: 'W', down: 'S', left: 'A', right: 'D', attack: 'SPACE', padIndex: 0,
       }),
       new Player(this, s2.x, s2.y, PLAYER_TEXTURES[1], {
-        up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', padIndex: 1,
+        up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', attack: 'ENTER', padIndex: 1,
       }),
     ];
   }
@@ -163,6 +249,8 @@ export class GameScene extends Phaser.Scene {
   private addMergeZone(t: TileRect): void {
     const r = toWorldRect(t);
     this.mergeZones.push(r);
+    const wall = this.add.zone(r.centerX, r.centerY, r.width, r.height);
+    this.safeZones.add(wall);
     // A faint shimmer over the stone plaza so players can tell it's special.
     const glow = this.add.rectangle(r.centerX, r.centerY, r.width, r.height, 0x9ad8ff, 0.05);
     glow.setStrokeStyle(1, 0x9ad8ff, 0.6).setDepth(5);
@@ -205,8 +293,7 @@ export class GameScene extends Phaser.Scene {
     if (this.travelling) return;
     const [a, b] = this.players;
     const exit = this.exits.find(
-      ({ area }) => area.contains(a.body.center.x, a.body.center.y) &&
-        area.contains(b.body.center.x, b.body.center.y),
+      ({ area }) => area.contains(a.feet.x, a.feet.y) && area.contains(b.feet.x, b.feet.y),
     );
     if (exit) this.restartLevel(exit.spec.to, this.level.id);
   }

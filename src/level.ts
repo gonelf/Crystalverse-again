@@ -7,6 +7,14 @@ export interface TileRect {
   rows: number;
 }
 
+export type MobKind = 'green' | 'purple';
+
+export interface MobSpawn {
+  col: number;
+  row: number;
+  kind: MobKind;
+}
+
 export interface LevelData {
   cols: number;
   rows: number;
@@ -19,6 +27,8 @@ export interface LevelData {
   solid: number[][];
   /** Areas where the two viewports merge into one when both players stand inside. */
   mergeZones: TileRect[];
+  /** Where mobs start and respawn. Mobs never enter merge zones. */
+  mobs: MobSpawn[];
 }
 
 /** Tile indices into public/assets/overworld.png (40 tiles per row). */
@@ -47,6 +57,10 @@ const SPAWNS: LevelData['spawns'] = [
   { col: 12, row: 25 },
   { col: 67, row: 25 },
 ];
+/** Mobs per meadow. Every third one is the tougher purple kind. */
+const MOBS_PER_SIDE = 7;
+/** Keep mobs at least this many tiles away from the player spawns. */
+const MOB_SPAWN_CLEARANCE = 10;
 
 /** Small deterministic PRNG so the level looks the same on every run. */
 function mulberry32(seed: number): () => number {
@@ -116,7 +130,20 @@ function generate(): LevelData {
     }
   }
 
-  return { cols: COLS, rows: ROWS, spawns: SPAWNS, ground, decor, solid, mergeZones: MERGE_ZONES };
+  const mobs: MobSpawn[] = [];
+  for (const [minCol, maxCol] of [[2, RIVER.from - 2], [RIVER.to + 2, COLS - 3]]) {
+    for (let placed = 0; placed < MOBS_PER_SIDE; ) {
+      const c = minCol + Math.floor(rand() * (maxCol - minCol + 1));
+      const r = 2 + Math.floor(rand() * (ROWS - 4));
+      const clear = solid[r][c] === -1 && !inPlaza(c, r, 3) &&
+        SPAWNS.every((s) => Math.hypot(s.col - c, s.row - r) >= MOB_SPAWN_CLEARANCE);
+      if (!clear) continue;
+      mobs.push({ col: c, row: r, kind: placed % 3 === 2 ? 'purple' : 'green' });
+      placed++;
+    }
+  }
+
+  return { cols: COLS, rows: ROWS, spawns: SPAWNS, ground, decor, solid, mergeZones: MERGE_ZONES, mobs };
 }
 
 export const LEVEL = generate();

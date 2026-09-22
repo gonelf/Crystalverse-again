@@ -9,5 +9,10 @@
   - `character.png`: the pack's hero sheet (16x32 frames), unmodified.
   - `character-p2.png`: a copy of `character.png` with the red shirt hue-shifted to blue for player 2.
 
+## Original art
+
+- `slime.png`: 16x16 slime frames (green and purple rows) drawn for this project
+  in the style of the pack above. Also CC0.
+
 The pack also includes cave and indoor tilesets, NPCs, objects, effects and UI.
 Add them here when the game uses them.

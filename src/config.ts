@@ -29,7 +29,9 @@ export const CRATE_PUSH_DELAY = 130;
 export const SHARED_VIEW_MIN_ZOOM = 1.4;
 
 /** Plate / door group colours, assigned in the order groups appear in a level. */
-export const PUZZLE_COLORS = [0x8ad8ff, 0xffd166, 0xb388ff, 0x7ce38b] as const;
+export const PUZZLE_COLORS = [
+  0x8ad8ff, 0xffd166, 0xb388ff, 0x7ce38b, 0xff8fa3, 0xffa45c,
+] as const;
 
 export const PLAYER_MAX_HP = 5;
 /** How long a player blinks and can't be hurt again after a hit, in ms. */

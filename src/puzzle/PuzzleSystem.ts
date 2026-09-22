@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { CRATE_PUSH_DELAY, PUZZLE_COLORS } from '../config';
+import { CRATE_PUSH_DELAY } from '../config';
 import { TILE_SIZE, type LevelData } from '../levels/types';
 import type { Player } from '../Player';
 import { UI_STATE, type PuzzleState } from '../uiState';
+import { puzzleColor } from './colors';
 import { Crate } from './Crate';
 import { Door } from './Door';
 import { PressurePlate } from './PressurePlate';
@@ -43,8 +44,8 @@ export class PuzzleSystem {
   ) {
     this.intents = players.map(() => ({ dCol: 0, dRow: 0, heldMs: 0 }));
 
-    const names = [...new Set([...level.plates, ...level.doors].map((o) => o.group))].sort();
-    const colorOf = (group: string) => PUZZLE_COLORS[names.indexOf(group) % PUZZLE_COLORS.length];
+    const names = [...new Set([...level.plates, ...level.doors].map((o) => o.group))];
+    const colorOf = (group: string) => puzzleColor(group, names);
     const groupOf = (name: string) => {
       const existing = this.groups.get(name);
       if (existing) return existing;

@@ -3,8 +3,9 @@ import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS, SHARED_VIEW_MIN_ZOOM } from '../config
 import { createGeneratedTextures, DUNGEON_TILESET, TEXTURES } from '../graphics/textures';
 import { HeartPickup } from '../HeartPickup';
 import {
+  getLevel,
+  hasDraft,
   isLevelId,
-  LEVELS,
   START_LEVEL,
   TILE_SIZE,
   type ExitSpec,
@@ -54,7 +55,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   init(data: GameSceneData): void {
-    this.level = LEVELS[data.levelId ?? levelFromQuery() ?? START_LEVEL];
+    this.level = getLevel(data.levelId ?? levelFromQuery() ?? START_LEVEL);
     this.from = data.from;
     this.mergeZones = [];
     this.exits = [];
@@ -114,6 +115,7 @@ export class GameScene extends Phaser.Scene {
     if (this.puzzle) {
       this.input.keyboard?.addKey('R').on('down', () => this.restartLevel(this.level.id, this.from));
     }
+    this.input.keyboard?.addKey('F2').on('down', () => this.openEditor());
 
     if (import.meta.env.DEV) {
       (window as unknown as { coop: unknown }).coop = { scene: this, split: this.split };
@@ -307,9 +309,16 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** Hands the vault over to the layout editor. */
+  private openEditor(): void {
+    this.scene.stop('ui');
+    this.scene.start('editor');
+  }
+
   private publishState(): void {
     const { id, name, hint, sharedView } = this.level;
-    this.registry.set(UI_STATE.level, { id, name, hint, sharedView } satisfies LevelState);
+    const draft = id === 'dungeon' && hasDraft();
+    this.registry.set(UI_STATE.level, { id, name, hint, sharedView, draft } satisfies LevelState);
     this.registry.set(UI_STATE.puzzle, this.puzzle ? this.puzzle.status : null);
   }
 }

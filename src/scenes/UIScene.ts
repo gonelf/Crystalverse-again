@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { PLAYER_COLORS, PLAYER_MAX_HP } from '../config';
 import { HEART, HEART_COLOR } from '../heart';
-import { LEVELS } from '../levels';
+import { getLevel } from '../levels';
 import { Minimap } from '../Minimap';
 import { UI_STATE, type LevelState, type PuzzleState } from '../uiState';
 import { HEALTH_EVENT, PLAYERS_MOVED_EVENT, SPLIT_PROGRESS_EVENT } from './GameScene';
@@ -111,7 +111,10 @@ export class UIScene extends Phaser.Scene {
     if (!level) return;
     this.sharedView = level.sharedView;
     this.hint.setText(level.hint);
-    this.title.setText(level.name).setAlpha(1);
+    this.title
+      .setText(level.draft ? `${level.name}  ·  DRAFT` : level.name)
+      .setColor(level.draft ? '#ffd166' : '#ffffff')
+      .setAlpha(1);
     // The level card announces the room, then gets out of the way.
     this.tweens.add({ targets: this.title, alpha: 0.25, delay: 2200, duration: 800 });
 
@@ -132,7 +135,7 @@ export class UIScene extends Phaser.Scene {
     if (this.sharedView) return;
 
     const { width, height } = this.scale;
-    this.minimaps = [0, 1].map((owner) => new Minimap(this, LEVELS[level.id], owner as 0 | 1));
+    this.minimaps = [0, 1].map((owner) => new Minimap(this, getLevel(level.id), owner as 0 | 1));
     const y = height - MINIMAP_MARGIN - this.minimaps[0].frameHeight;
     this.minimaps[0].setPosition(MINIMAP_MARGIN, y);
     this.minimaps[1].setPosition(width - MINIMAP_MARGIN - this.minimaps[1].frameWidth, y);

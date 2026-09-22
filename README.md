@@ -29,7 +29,8 @@ npm run dev        # http://localhost:5173
 npm run build      # typecheck + production build into dist/
 ```
 
-`?level=dungeon` starts straight in a level while working on it.
+`?level=dungeon` starts straight in a level while working on it, and `?edit`
+opens the vault editor.
 
 ## Controls
 
@@ -54,6 +55,30 @@ a dungeon, **R** resets the level if a crate ends up somewhere unhelpful.
   so each plate ends up wanting a crate on it. A crate that is holding a plate
   down glows in the plate's colour, and the HUD counts the plates.
 
+## Editing the vault
+
+The dungeon is a grid of characters in `src/levels/dungeon.layout.txt`, so it
+can be edited in any text editor — or in the game's own editor, which paints
+that file with the art the game uses.
+
+Open it with `?edit`, or press **F2** while playing. Then:
+
+- **Paint** with the left mouse button, rub back to floor with the right one.
+  Pick a brush from the palette or press its key: `1` wall, `2` floor, `5`
+  crate, `a` a plate, `A` the door it opens, and so on. Middle-drag or the
+  arrow keys pan, the wheel zooms, `F` fits the whole vault on screen.
+- **Checks** run on every edit: missing spawns or exit, a plate whose door is
+  missing (or the reverse), pieces walled off from P1's spawn, a gap in the
+  outer wall, and fewer crates than plates. They never try to prove a puzzle is
+  solvable — that is what playtesting is for.
+- **Playtest** (`Enter`) drops straight into the vault with the edit applied.
+  Unsaved work lives in a draft in the browser, so a reload keeps it and the
+  HUD marks the level `DRAFT`. **R** in the vault resets the room.
+- **Save to file** (dev server only) writes `dungeon.layout.txt` back to the
+  repo, which is what you commit. In a built copy of the game the button is
+  gone; **Copy text** and **Download** are still there. **Revert to file**
+  throws the draft away.
+
 ## How it works
 
 - `src/SplitScreen.ts` holds the split/merge logic. There are two cameras. Each
@@ -67,11 +92,18 @@ a dungeon, **R** resets the level if a crate ends up somewhere unhelpful.
 - `src/levels/` holds the level data. `types.ts` has the shared shape,
   `overworld.ts` generates the placeholder 80x50-tile meadow-and-river map (its
   tile indices point into `public/assets/overworld.png`, 40 tiles per row), and
-  `dungeon.ts` parses an ASCII layout — edit the strings to redesign the vault.
+  `dungeon.ts` parses `dungeon.layout.txt` — `draft.ts` keeps unsaved editor
+  changes, and `getLevel()` prefers a draft over the bundled layout.
   Every level is `ground` / `decor` / `solid` tile layers plus merge zones, mob
   spawns, exits and puzzle pieces, so it maps directly onto a Tiled map later.
 - `src/puzzle/` has the crates, plates and doors; `PuzzleSystem.ts` decides when
-  a crate may move and which doors are open.
+  a crate may move and which doors are open. A group's colour comes from its
+  letter (`src/puzzle/colors.ts`), so plates keep their colour while a level is
+  being edited.
+- `src/editor/` is the vault editor: `EditorScene.ts` paints the layout with the
+  game's own tiles, `EditorPanel.ts` is the DOM side panel, `validate.ts` holds
+  the checks, and `brushes.ts` the palette. Saving posts to a tiny dev-server
+  endpoint in `vite.config.ts`, which is the only thing that writes to the repo.
 - `src/Player.ts` handles movement, sword swings, hearts and knockback, with
   4-direction walk/idle animations from the 16x32 character sheet and attack
   animations from the same sheet cut into 32x32 frames. Only the player's feet

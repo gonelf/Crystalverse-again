@@ -50,6 +50,8 @@ export interface LevelData {
   name: string;
   /** One line of help shown at the bottom of the screen. */
   hint: string;
+  /** Changes when the level's source does, so per-level caches can be keyed on it. */
+  revision: string;
   tileset: TilesetKey;
   cols: number;
   rows: number;

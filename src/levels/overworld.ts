@@ -119,6 +119,7 @@ function generate(): LevelData {
     id: 'overworld',
     name: 'Crystalverse',
     hint: 'Meet on a plaza to share the screen · the northern stairs lead down',
+    revision: 'generated',
     tileset: 'overworld',
     cols: COLS,
     rows: ROWS,

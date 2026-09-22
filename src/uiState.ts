@@ -11,6 +11,8 @@ export interface LevelState {
   name: string;
   hint: string;
   sharedView: boolean;
+  /** True while the level is running from unsaved editor changes. */
+  draft: boolean;
 }
 
 export interface PuzzleState {

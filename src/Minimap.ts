@@ -27,7 +27,8 @@ const isDeep = (level: LevelData, t: number) =>
 
 /** Draw a level once into a shared texture: ground, obstacles, merge zones and exits. */
 function ensureTerrainTexture(scene: Phaser.Scene, level: LevelData): string {
-  const key = `minimap-${level.id}`;
+  // Keyed on the revision too, so an edited layout doesn't reuse a stale map.
+  const key = `minimap-${level.id}-${level.revision}`;
   if (scene.textures.exists(key)) return key;
   const tex = scene.textures.createCanvas(key, level.cols * SCALE, level.rows * SCALE)!;
   const ctx = tex.getContext();

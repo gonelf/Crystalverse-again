@@ -14,6 +14,11 @@ type Facing = 'down' | 'right' | 'up' | 'left';
 
 /** character.png: 17 columns of 16x32 frames, one row per facing, 4-frame walk cycle. */
 const SHEET_COLUMNS = 17;
+const FRAME_HEIGHT = 32;
+/** Only the feet collide, so heads can overlap whatever is behind them. */
+const FEET = { width: 10, height: 8, offsetX: 3, offsetY: 22 };
+/** Distance from the sprite's centre down to the centre of its feet. */
+const FEET_DY = FEET.offsetY + FEET.height / 2 - FRAME_HEIGHT / 2;
 const FACING_ROWS: Record<Facing, number> = { down: 0, right: 1, up: 2, left: 3 };
 const STICK_DEADZONE = 0.2;
 
@@ -25,6 +30,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   /** Register the walk/idle animations for a character sheet. Call once per texture. */
   static createAnimations(scene: Phaser.Scene, texture: string): void {
+    if (scene.anims.exists(`${texture}-idle-down`)) return;
     for (const [facing, row] of Object.entries(FACING_ROWS)) {
       const first = row * SHEET_COLUMNS;
       scene.anims.create({
@@ -40,6 +46,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /** `x`/`y` is where the player's feet stand, not the centre of the sprite. */
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -47,11 +54,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     texture: string,
     private readonly controls: PlayerControls,
   ) {
-    super(scene, x, y, texture, 0);
+    super(scene, x, y - FEET_DY, texture, 0);
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    // Collide with the feet only, so heads can overlap things behind them.
-    this.body.setSize(10, 8).setOffset(3, 22);
+    this.body.setSize(FEET.width, FEET.height).setOffset(FEET.offsetX, FEET.offsetY);
     this.setCollideWorldBounds(true);
     this.setDepth(10);
 
@@ -62,6 +68,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       left: kb.addKey(controls.left),
       right: kb.addKey(controls.right),
     };
+  }
+
+  /** This frame's movement input, -1..1 per axis. Zero-length while idle. */
+  get moveInput(): Phaser.Math.Vector2 {
+    return this.move;
   }
 
   update(): void {

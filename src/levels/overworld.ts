@@ -1,25 +1,4 @@
-export const TILE_SIZE = 16;
-
-export interface TileRect {
-  col: number;
-  row: number;
-  cols: number;
-  rows: number;
-}
-
-export interface LevelData {
-  cols: number;
-  rows: number;
-  spawns: [{ col: number; row: number }, { col: number; row: number }];
-  /** Opaque floor tiles (grass, stone). */
-  ground: number[][];
-  /** Walk-over decoration drawn on top of the ground (flowers). -1 = empty. */
-  decor: number[][];
-  /** Everything that blocks movement (water, bushes, trees, rocks). -1 = empty. */
-  solid: number[][];
-  /** Areas where the two viewports merge into one when both players stand inside. */
-  mergeZones: TileRect[];
-}
+import { inRect, mulberry32, type ExitSpec, type LevelData, type TileRect } from './types';
 
 /** Tile indices into public/assets/overworld.png (40 tiles per row). */
 const TILES = {
@@ -48,28 +27,24 @@ const SPAWNS: LevelData['spawns'] = [
   { col: 67, row: 25 },
 ];
 
-/** Small deterministic PRNG so the level looks the same on every run. */
-function mulberry32(seed: number): () => number {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function inRect(col: number, row: number, r: TileRect, pad = 0): boolean {
-  return (
-    col >= r.col - pad && col < r.col + r.cols + pad && row >= r.row - pad && row < r.row + r.rows + pad
-  );
-}
+/** Stairs down into the dungeon, in the middle of the northern plaza. */
+const DUNGEON_ENTRANCE: ExitSpec = {
+  rect: { col: 38, row: 8, cols: 3, rows: 2 },
+  to: 'dungeon',
+  label: 'VAULT',
+  arrival: [
+    { col: 38, row: 12 },
+    { col: 40, row: 12 },
+  ],
+};
 
 /**
- * Placeholder level: two meadows split by a river. Stone plazas bridge the
- * river and act as the merge zones, so the players only meet there.
+ * Two meadows split by a river. Stone plazas bridge the river and act as the
+ * merge zones, so the players only meet there — and the northern plaza holds
+ * the stairs down into the dungeon.
  *
- * Swap this for a Tiled map later: the same three layers plus an object layer
- * of merge-zone rectangles.
+ * Swap this for a Tiled map later: the same three layers plus object layers of
+ * merge-zone and exit rectangles.
  */
 function generate(): LevelData {
   const rand = mulberry32(7);
@@ -116,7 +91,24 @@ function generate(): LevelData {
     }
   }
 
-  return { cols: COLS, rows: ROWS, spawns: SPAWNS, ground, decor, solid, mergeZones: MERGE_ZONES };
+  return {
+    id: 'overworld',
+    name: 'Crystalverse',
+    hint: 'Meet on a plaza to share the screen · the northern stairs lead down',
+    tileset: 'overworld',
+    cols: COLS,
+    rows: ROWS,
+    spawns: SPAWNS,
+    ground,
+    decor,
+    solid,
+    mergeZones: MERGE_ZONES,
+    sharedView: false,
+    plates: [],
+    crates: [],
+    doors: [],
+    exits: [DUNGEON_ENTRANCE],
+  };
 }
 
-export const LEVEL = generate();
+export const OVERWORLD = generate();

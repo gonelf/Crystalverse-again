@@ -16,3 +16,17 @@ export const MERGE_FRAMING_MARGIN = 120;
 export const MERGE_MIN_ZOOM = 1.5;
 
 export const PLAYER_COLORS = [0xe04848, 0x5a9cff] as const;
+
+/** How long a crate takes to slide one tile, in ms. */
+export const CRATE_PUSH_DURATION = 170;
+/** How long a player must lean on a crate before it starts sliding, in ms. */
+export const CRATE_PUSH_DELAY = 130;
+
+/**
+ * Dungeons keep both players on one camera, so it may zoom out further than a
+ * merge does in the overworld to keep them both in frame.
+ */
+export const SHARED_VIEW_MIN_ZOOM = 1.4;
+
+/** Plate / door group colours, assigned in the order groups appear in a level. */
+export const PUZZLE_COLORS = [0x8ad8ff, 0xffd166, 0xb388ff, 0x7ce38b] as const;

@@ -6,6 +6,8 @@ import { Player } from '../Player';
 import { SplitScreen } from '../SplitScreen';
 
 export const SPLIT_PROGRESS_EVENT = 'split-progress';
+/** Emitted every frame with both players, for the minimaps. */
+export const PLAYERS_MOVED_EVENT = 'players-moved';
 /** Emitted with `[p1Hp, p2Hp]` whenever either player's health changes. */
 export const HEALTH_EVENT = 'player-health';
 
@@ -82,6 +84,7 @@ export class GameScene extends Phaser.Scene {
     for (const m of this.mobs) m.update(time, this.players);
     this.split.update(this.bothInSameMergeZone(), delta);
     this.game.events.emit(SPLIT_PROGRESS_EVENT, this.split.progress);
+    this.game.events.emit(PLAYERS_MOVED_EVENT, this.players);
 
     const hp = this.players.map((p) => p.hp);
     if (hp.join() !== this.lastHp) {

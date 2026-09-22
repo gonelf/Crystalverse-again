@@ -54,6 +54,10 @@ Browsers only expose a gamepad after you press a button on it.
   Mob spawns come from `LEVEL.mobs`; killed mobs respawn after
   `MOB_RESPAWN_MS` once nobody is standing near their spawn.
 - `src/scenes/UIScene.ts` draws the screen-space overlay (divider, labels,
-  hearts, "LINKED" banner).
+  hearts, minimaps, "LINKED" banner).
+- `src/Minimap.ts` draws the whole level once into a small texture and shows
+  both players on it, with a pulsing ring on the partner, so split players can
+  find each other and the plazas. Each half gets one in its bottom outer
+  corner; they fade out once the views merge.
 - `src/config.ts` has the tuning values (zoom, speed, merge duration, zoom
   limits, health, knockback, mob ranges). Per-kind mob stats live in `src/Mob.ts`.

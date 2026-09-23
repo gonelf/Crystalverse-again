@@ -1,6 +1,7 @@
 export const TILE_SIZE = 16;
 
-export type LevelId = 'overworld' | 'dungeon';
+/** A level's id is its file name in `src/levels/data`. */
+export type LevelId = string;
 
 /** Which tileset image the level's tile indices point into. */
 export type TilesetKey = 'overworld' | 'dungeon';
@@ -38,11 +39,15 @@ export interface DoorSpec extends TilePos {
 
 /** Both players standing inside `rect` travel to level `to`. */
 export interface ExitSpec {
+  /** The character that marks this exit in the layout: X, Y or Z. */
+  mark: string;
   rect: TileRect;
   to: LevelId;
   label: string;
-  /** Where the players appear when they come back through this exit. */
-  arrival?: [TilePos, TilePos];
+  /** Exit mark in the target level to arrive at; its spawns are used if unset. */
+  arriveAt?: string;
+  /** Free tiles beside this exit, where players coming in through it land. */
+  arrival: TilePos[];
 }
 
 export interface LevelData {

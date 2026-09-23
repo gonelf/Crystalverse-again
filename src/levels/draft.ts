@@ -1,46 +1,45 @@
-import { DUNGEON_LAYOUT, layoutToText, parseLayout } from './dungeon';
+import type { LevelFile } from './format';
 
-const DRAFT_KEY = 'crystalverse.dungeon-draft';
+const PREFIX = 'crystalverse.level.';
 
 /**
- * Unsaved editor work, kept in the browser so a reload (or a playtest) doesn't
- * lose it. The layout file in the repo stays the source of truth: saving to it
- * clears the draft.
+ * Unsaved editor work, per level, kept in the browser so a reload (or a
+ * playtest) doesn't lose it. The files in `src/levels/data` stay the source of
+ * truth: saving to one clears its draft.
  */
-export function loadDraft(): string[] | null {
+export function loadDraft(id: string): LevelFile | null {
   try {
-    const text = localStorage.getItem(DRAFT_KEY);
-    return text ? parseLayout(text) : null;
+    const text = localStorage.getItem(PREFIX + id);
+    return text ? (JSON.parse(text) as LevelFile) : null;
   } catch {
-    // Private windows and blocked site data just mean no draft.
+    // Private windows, blocked site data or a corrupt draft: just no draft.
     return null;
   }
 }
 
-export function saveDraft(layout: readonly string[]): void {
+export function saveDraft(id: string, file: LevelFile): void {
   try {
-    if (layoutToText(layout) === layoutToText(DUNGEON_LAYOUT)) localStorage.removeItem(DRAFT_KEY);
-    else localStorage.setItem(DRAFT_KEY, layoutToText(layout));
+    localStorage.setItem(PREFIX + id, JSON.stringify(file));
   } catch {
     // Not being able to remember a draft shouldn't break the editor.
   }
 }
 
-export function clearDraft(): void {
+export function clearDraft(id: string): void {
   try {
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(PREFIX + id);
   } catch {
     // Nothing to clear.
   }
 }
 
-/** Short stable id for a layout, used to key caches built from it. */
-export function revisionOf(layout: readonly string[]): string {
-  let hash = 0x811c9dc5;
-  const text = layoutToText(layout);
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
+/** Ids of every level with unsaved changes, including levels not saved yet. */
+export function draftIds(): string[] {
+  try {
+    return Object.keys(localStorage)
+      .filter((key) => key.startsWith(PREFIX))
+      .map((key) => key.slice(PREFIX.length));
+  } catch {
+    return [];
   }
-  return (hash >>> 0).toString(36);
 }

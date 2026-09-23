@@ -1,16 +1,18 @@
 import Phaser from 'phaser';
 import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS, SHARED_VIEW_MIN_ZOOM } from '../config';
-import { createGeneratedTextures, DUNGEON_TILESET, TEXTURES } from '../graphics/textures';
+import { createGeneratedTextures, TEXTURES } from '../graphics/textures';
 import { HeartPickup } from '../HeartPickup';
 import {
   getLevel,
   hasDraft,
+  hasLevel,
   isLevelId,
-  START_LEVEL,
+  startLevel,
   TILE_SIZE,
   type ExitSpec,
   type LevelData,
   type LevelId,
+  tilesetImage,
   type TilePos,
   type TileRect,
 } from '../levels';
@@ -31,8 +33,8 @@ const FADE_MS = 280;
 
 export interface GameSceneData {
   levelId?: LevelId;
-  /** The level the players are arriving from, so they come out of the right door. */
-  from?: LevelId;
+  /** Exit mark in this level to arrive at, named by the exit that led here. */
+  arriveAt?: string;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -48,15 +50,16 @@ export class GameScene extends Phaser.Scene {
   private pickups!: Phaser.Physics.Arcade.Group;
   private lastHp = '';
   private travelling = false;
-  private from?: LevelId;
+  private arriveAt?: string;
 
   constructor() {
     super('game');
   }
 
   init(data: GameSceneData): void {
-    this.level = getLevel(data.levelId ?? levelFromQuery() ?? START_LEVEL);
-    this.from = data.from;
+    const requested = data.levelId ?? levelFromQuery() ?? startLevel();
+    this.level = getLevel(hasLevel(requested) ? requested : startLevel());
+    this.arriveAt = data.arriveAt;
     this.mergeZones = [];
     this.exits = [];
     this.mobs = [];
@@ -113,7 +116,7 @@ export class GameScene extends Phaser.Scene {
     // Crates can be pushed into a corner; R puts the room back the way it was.
     // Keys are destroyed when the scene shuts down, so this doesn't stack up.
     if (this.puzzle) {
-      this.input.keyboard?.addKey('R').on('down', () => this.restartLevel(this.level.id, this.from));
+      this.input.keyboard?.addKey('R').on('down', () => this.restartLevel(this.level.id, this.arriveAt));
     }
     this.input.keyboard?.addKey('F2').on('down', () => this.openEditor());
 
@@ -206,8 +209,7 @@ export class GameScene extends Phaser.Scene {
       width: level.cols,
       height: level.rows,
     });
-    const image = level.tileset === 'dungeon' ? DUNGEON_TILESET : 'overworld';
-    const tileset = map.addTilesetImage('tiles', image, TILE_SIZE, TILE_SIZE)!;
+    const tileset = map.addTilesetImage('tiles', tilesetImage(level.tileset), TILE_SIZE, TILE_SIZE)!;
 
     const layer = (name: string, data: number[][]) => {
       const l = map.createBlankLayer(name, tileset)!;
@@ -237,10 +239,15 @@ export class GameScene extends Phaser.Scene {
     ];
   }
 
-  /** Players step back out of the door they came in through, if it has one. */
+  /**
+   * Players come in beside the exit the door they used points at, and start at
+   * the level's own spawns otherwise.
+   */
   private spawnTiles(): readonly [TilePos, TilePos] {
-    const back = this.level.exits.find((e) => e.to === this.from && e.arrival);
-    return back?.arrival ?? this.level.spawns;
+    const door = this.level.exits.find((e) => e.mark === this.arriveAt);
+    const landing = door?.arrival ?? [];
+    if (!landing.length) return this.level.spawns;
+    return [landing[0], landing[landing.length - 1]];
   }
 
   private bothInSameMergeZone(): boolean {
@@ -297,27 +304,29 @@ export class GameScene extends Phaser.Scene {
     const exit = this.exits.find(
       ({ area }) => area.contains(a.feet.x, a.feet.y) && area.contains(b.feet.x, b.feet.y),
     );
-    if (exit) this.restartLevel(exit.spec.to, this.level.id);
+    // An exit pointing at a level that no longer exists just does nothing;
+    // the editor's checks flag it.
+    if (exit && hasLevel(exit.spec.to)) this.restartLevel(exit.spec.to, exit.spec.arriveAt);
   }
 
-  private restartLevel(levelId: LevelId, from?: LevelId): void {
+  private restartLevel(levelId: LevelId, arriveAt?: string): void {
     if (this.travelling) return;
     this.travelling = true;
     this.cameras.cameras.forEach((cam) => cam.fadeOut(FADE_MS, 0, 0, 0));
     this.time.delayedCall(FADE_MS, () => {
-      this.scene.restart({ levelId, from } satisfies GameSceneData);
+      this.scene.restart({ levelId, arriveAt } satisfies GameSceneData);
     });
   }
 
   /** Hands the vault over to the layout editor. */
   private openEditor(): void {
     this.scene.stop('ui');
-    this.scene.start('editor');
+    this.scene.start('editor', { levelId: this.level.id });
   }
 
   private publishState(): void {
     const { id, name, hint, sharedView } = this.level;
-    const draft = id === 'dungeon' && hasDraft();
+    const draft = hasDraft(id);
     this.registry.set(UI_STATE.level, { id, name, hint, sharedView, draft } satisfies LevelState);
     this.registry.set(UI_STATE.puzzle, this.puzzle ? this.puzzle.status : null);
   }

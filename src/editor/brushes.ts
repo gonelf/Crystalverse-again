@@ -1,51 +1,71 @@
 import {
-  CRACK_CHAR,
   CRATE_CHAR,
   DOOR_CHARS,
-  EXIT_CHAR,
+  EXIT_MARKS,
+  MOB_CHARS,
   PLATE_CHARS,
+  SPAWN_CHARS,
+  TERRAIN,
+  type TilesetKey,
 } from '../levels';
 import { puzzleColor } from '../puzzle/colors';
 
 export interface Brush {
   char: string;
   label: string;
-  /** Key that selects this brush. */
+  /** Key that picks this brush in the editor. */
   key: string;
   /** Swatch colour in the palette, as CSS. */
   color: string;
+  section: 'Terrain' | 'Pieces' | 'Puzzle' | 'Exits';
 }
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
-/** Every plate/door group the layout format understands. */
-const GROUPS = PLATE_CHARS.length;
+/** Whatever the level's tileset can paint, plus the pieces every level shares. */
+export function brushesFor(tileset: TilesetKey): Brush[] {
+  const terrain: Brush[] = Object.entries(TERRAIN[tileset]).map(([char, t]) => ({
+    char,
+    label: t.label,
+    key: t.key,
+    color: t.color,
+    section: 'Terrain',
+  }));
 
-export const BRUSHES: Brush[] = [
-  { char: '#', label: 'Wall', key: '1', color: '#3f4661' },
-  { char: '.', label: 'Floor', key: '2', color: '#262b3a' },
-  { char: CRACK_CHAR, label: 'Cracked floor', key: '3', color: '#333a4e' },
-  { char: ' ', label: 'Void', key: '4', color: '#05070d' },
-  { char: CRATE_CHAR, label: 'Crate', key: '5', color: '#8a5a2b' },
-  { char: EXIT_CHAR, label: 'Exit', key: '6', color: '#ffd166' },
-  { char: '1', label: 'P1 spawn', key: '7', color: '#e04848' },
-  { char: '2', label: 'P2 spawn', key: '8', color: '#5a9cff' },
+  const pieces: Brush[] = [
+    { char: SPAWN_CHARS[0], label: 'P1 spawn', key: 'p', color: '#e04848', section: 'Pieces' },
+    { char: SPAWN_CHARS[1], label: 'P2 spawn', key: 'q', color: '#5a9cff', section: 'Pieces' },
+    { char: CRATE_CHAR, label: 'Crate', key: 'o', color: '#8a5a2b', section: 'Pieces' },
+    ...Object.entries(MOB_CHARS).map(([char, kind]): Brush => ({
+      char,
+      label: `${kind[0].toUpperCase()}${kind.slice(1)} slime`,
+      key: char,
+      color: kind === 'green' ? '#69c06a' : '#a879d8',
+      section: 'Pieces',
+    })),
+  ];
+
   // A plate and the door it opens sit next to each other, one group per row.
-  ...Array.from({ length: GROUPS }, (_, i): Brush[] => {
-    const plate = PLATE_CHARS[i];
+  const puzzle: Brush[] = [...PLATE_CHARS].flatMap((plate, i): Brush[] => {
     const door = DOOR_CHARS[i];
     const color = hex(puzzleColor(plate));
     return [
-      { char: plate, label: `Plate ${plate}`, key: plate, color },
-      { char: door, label: `Door ${door}`, key: door, color },
+      { char: plate, label: `Plate ${plate}`, key: plate, color, section: 'Puzzle' },
+      { char: door, label: `Door ${door}`, key: door, color, section: 'Puzzle' },
     ];
-  }).flat(),
-];
+  });
 
-export const DEFAULT_BRUSH = BRUSHES[0].char;
+  const exits: Brush[] = [...EXIT_MARKS].map((mark): Brush => ({
+    char: mark,
+    label: `Exit ${mark}`,
+    key: mark.toLowerCase(),
+    color: '#ffd166',
+    section: 'Exits',
+  }));
+
+  return [...terrain, ...pieces, ...puzzle, ...exits];
+}
+
 /** Right-dragging rubs a tile back to plain floor. */
 export const ERASE_CHAR = '.';
-
-export function brushForKey(key: string): Brush | undefined {
-  return BRUSHES.find((b) => b.key === key);
-}
+export const DEFAULT_BRUSH = '#';

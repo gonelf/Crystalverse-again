@@ -10,7 +10,8 @@ view. They split again when either player leaves.
 In a **dungeon** there is no split at all: both players share one camera the
 whole time, which zooms to keep them both in frame. The northern plaza has
 stairs down into *The Sunken Vault*, a dungeon of crate-and-pressure-plate
-puzzles.
+puzzles. Levels are data files and the game has an editor for them, so both of
+those are things you change without touching code — see **Levels** below.
 
 Each meadow has slimes that wander, chase a player who gets close and cost a
 heart on contact. Players fight back with a sword. Killed slimes sometimes
@@ -29,8 +30,8 @@ npm run dev        # http://localhost:5173
 npm run build      # typecheck + production build into dist/
 ```
 
-`?level=dungeon` starts straight in a level while working on it, and `?edit`
-opens the vault editor.
+`?level=<id>` starts straight in a level while working on it (`?level=vault`),
+and `?edit` opens the level editor.
 
 ## Controls
 
@@ -55,29 +56,74 @@ a dungeon, **R** resets the level if a crate ends up somewhere unhelpful.
   so each plate ends up wanting a crate on it. A crate that is holding a plate
   down glows in the plate's colour, and the HUD counts the plates.
 
-## Editing the vault
+## Levels
 
-The dungeon is a grid of characters in `src/levels/dungeon.layout.txt`, so it
-can be edited in any text editor — or in the game's own editor, which paints
-that file with the art the game uses.
+Every level is one JSON file in `src/levels/data`. The file name is the level's
+id, and the file holds everything the game needs — no code changes to add one:
 
-Open it with `?edit`, or press **F2** while playing. Then:
+```json
+{
+  "name": "The Sunken Vault",
+  "hint": "Walk into a crate to push it · weigh down every plate",
+  "tileset": "dungeon",
+  "sharedView": true,
+  "exits": { "X": { "to": "overworld", "label": "LEAVE", "arriveAt": "X" } },
+  "layout": ["####...", "#..1..#", "..."]
+}
+```
+
+- `tileset` picks the art: `overworld` (grass, water, trees, plazas) or
+  `dungeon` (flagstones, brick walls). The same layout character means the
+  matching thing in either: `.` floor, `#` wall, `,` decoration, `=` a plaza
+  the viewports merge over, plus `~` water, `T` tree and `^` rock outdoors.
+- Pieces are `1`/`2` player spawns, `o` crate, `a`..`f` plates with `A`..`F`
+  as the door each group opens, `g`/`v` green and purple slimes.
+- `X`, `Y`, `Z` mark exits. Each one's entry in `exits` says which level it
+  leads `to`, the word shown over it, and optionally which exit mark to
+  `arriveAt` in that level — leave that out to arrive at the level's own
+  spawns. Players come out on the free tiles beside the exit they arrive at.
+- `"start": true` marks the level the game opens on.
+- `sharedView` keeps both players on one camera, which is what makes a dungeon
+  a dungeon. Without it the screen splits and the `=` plazas merge it.
+
+## The editor
+
+`?edit`, or **F2** while playing, opens an editor for the level you're in. It
+paints any level — including the starting one — with the art the game draws it
+with.
 
 - **Paint** with the left mouse button, rub back to floor with the right one.
-  Pick a brush from the palette or press its key: `1` wall, `2` floor, `5`
-  crate, `a` a plate, `A` the door it opens, and so on. Middle-drag or the
-  arrow keys pan, the wheel zooms, `F` fits the whole vault on screen.
-- **Checks** run on every edit: missing spawns or exit, a plate whose door is
-  missing (or the reverse), pieces walled off from P1's spawn, a gap in the
-  outer wall, and fewer crates than plates. They never try to prove a puzzle is
-  solvable — that is what playtesting is for.
-- **Playtest** (`Enter`) drops straight into the vault with the edit applied.
-  Unsaved work lives in a draft in the browser, so a reload keeps it and the
-  HUD marks the level `DRAFT`. **R** in the vault resets the room.
-- **Save to file** (dev server only) writes `dungeon.layout.txt` back to the
-  repo, which is what you commit. In a built copy of the game the button is
-  gone; **Copy text** and **Download** are still there. **Revert to file**
-  throws the draft away.
+  Pick a brush from the palette or press its key. Middle-drag or the arrow keys
+  pan, the wheel zooms, `F` fits the level on screen, `⌘Z` undoes.
+- **Level** picks which level to edit, and **New…** starts one from scratch.
+  **Settings** set its name, hint, art, shared camera and whether the game
+  opens on it.
+- **Exits** wires the doors: paint an `X`, `Y` or `Z`, then choose the level it
+  leads to, its label, and where in that level players arrive. That is all
+  there is to joining two levels together.
+- **Checks** run on every edit: missing spawns, a plate whose door is missing
+  (or the reverse), an exit that leads nowhere or at a mark that isn't painted
+  there, pieces walled off from P1's spawn, a gap in the outer wall, fewer
+  crates than plates, no (or more than one) starting level. They report what
+  would make a level unplayable and leave solvability to playtesting.
+- **Playtest** drops into the level with the edit applied. Unsaved work is kept
+  as a draft in the browser, so a reload keeps it and the HUD marks the run
+  `DRAFT`. **Discard draft** throws it away.
+
+### Publishing a level
+
+Edits are yours alone until the level file is saved and committed:
+
+1. **Save to file** (while `npm run dev` is running) writes
+   `src/levels/data/<id>.json` through a small dev-server endpoint.
+2. Commit that file and push it. The deployed game bundles whatever is in
+   `src/levels/data`, so once the build goes out, everyone who opens the game
+   plays the level.
+
+In a built copy of the game there is no server to save to, so the editor offers
+**Copy JSON** / **Download** instead: drop the file into `src/levels/data` and
+commit it. (Sharing levels between players without a deploy would need a
+backend to store them; nothing here talks to a server at runtime.)
 
 ## How it works
 
@@ -89,21 +135,23 @@ Open it with `?edit`, or press **F2** while playing. Then:
   the transition entirely, which is what dungeons use.
 - `SplitScreen.hideFromOther(owner, ...objects)` makes anything private to one
   player, e.g. clues only P1 can see.
-- `src/levels/` holds the level data. `types.ts` has the shared shape,
-  `overworld.ts` generates the placeholder 80x50-tile meadow-and-river map (its
-  tile indices point into `public/assets/overworld.png`, 40 tiles per row), and
-  `dungeon.ts` parses `dungeon.layout.txt` — `draft.ts` keeps unsaved editor
-  changes, and `getLevel()` prefers a draft over the bundled layout.
+- `src/levels/` loads and builds levels. `data/*.json` are the levels
+  themselves, `format.ts` describes the file, `terrain.ts` maps layout
+  characters to tiles for each tileset, `parse.ts` turns a file into the
+  layers, pieces, merge zones and exits the game uses, `draft.ts` keeps unsaved
+  editor changes, and `index.ts` finds every level file and prefers a draft
+  over the saved one.
   Every level is `ground` / `decor` / `solid` tile layers plus merge zones, mob
   spawns, exits and puzzle pieces, so it maps directly onto a Tiled map later.
 - `src/puzzle/` has the crates, plates and doors; `PuzzleSystem.ts` decides when
   a crate may move and which doors are open. A group's colour comes from its
   letter (`src/puzzle/colors.ts`), so plates keep their colour while a level is
   being edited.
-- `src/editor/` is the vault editor: `EditorScene.ts` paints the layout with the
+- `src/editor/` is the level editor: `EditorScene.ts` paints a level with the
   game's own tiles, `EditorPanel.ts` is the DOM side panel, `validate.ts` holds
-  the checks, and `brushes.ts` the palette. Saving posts to a tiny dev-server
-  endpoint in `vite.config.ts`, which is the only thing that writes to the repo.
+  the checks, and `brushes.ts` builds the palette from the level's tileset.
+  Saving posts to a tiny dev-server endpoint in `vite.config.ts`, which is the
+  only thing that writes to the repo.
 - `src/Player.ts` handles movement, sword swings, hearts and knockback, with
   4-direction walk/idle animations from the 16x32 character sheet and attack
   animations from the same sheet cut into 32x32 frames. Only the player's feet

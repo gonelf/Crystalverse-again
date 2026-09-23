@@ -19,8 +19,10 @@ drop a heart that heals whichever hurt player picks it up. Merge zones are safe:
 can't enter them.
 
 Art is ArMM1998's CC0 [Zelda-like tilesets and sprites](https://opengameart.org/content/zelda-like-tilesets-and-sprites)
-pack. See `public/assets/CREDITS.md`. The dungeon tiles, crates, plates, doors
-and stairs are drawn in code at startup (`src/graphics/textures.ts`).
+pack. See `public/assets/CREDITS.md`. The dungeon is a different look — an
+Aztec temple of limestone friezes, jade inlays, braziers and painted glyphs —
+and its tiles, crates, plates, doors and stairs are drawn as pixel maps in code
+at startup (`src/graphics/textures.ts`), so it needs no third-party art.
 
 ## Run
 
@@ -73,9 +75,11 @@ id, and the file holds everything the game needs — no code changes to add one:
 ```
 
 - `tileset` picks the art: `overworld` (grass, water, trees, plazas) or
-  `dungeon` (flagstones, brick walls). The same layout character means the
-  matching thing in either: `.` floor, `#` wall, `,` decoration, `=` a plaza
-  the viewports merge over, plus `~` water, `T` tree and `^` rock outdoors.
+  `dungeon` (an Aztec temple). The same layout character means the matching
+  thing in either: `.` floor or grass, `#` carved wall or bush, `,` decoration
+  (vines underground, flowers outdoors), `=` a plaza the viewports merge over.
+  Outdoors adds `~` water, `T` tree and `^` rock; the temple adds `;` a painted
+  glyph and `*` a lit brazier.
 - Pieces are `1`/`2` player spawns, `o` crate, `a`..`f` plates with `A`..`F`
   as the door each group opens, `g`/`v` green and purple slimes.
 - `X`, `Y`, `Z` mark exits. Each one's entry in `exits` says which level it

@@ -93,6 +93,14 @@ id, and the file holds everything the game needs — no code changes to add one:
 - `"start": true` marks the level the game opens on.
 - `sharedView` keeps both players on one camera, which is what makes a dungeon
   a dungeon. Without it the screen splits and the `=` plazas merge it.
+- `roomView` frames one room at a time on top of that, the way an old top-down
+  dungeon does. Rooms are worked out from the layout — a run of floor walled
+  off from the rest, with doorways counted as walls — so there is nothing to
+  declare beyond the flag. The view cuts to the next room only once *both*
+  players are through the door, and the viewport is sized to the room rather
+  than the window, so a room that isn't the window's shape is letterboxed
+  instead of letting the next room show past its walls. Rooms of 20x11 tiles,
+  walls included, fill the window exactly; the vault is built from four of them.
 
 ## Solaria art
 

@@ -73,6 +73,10 @@ export interface LevelData {
   mobs: MobSpawn[];
   /** True for levels the players always share a single camera in (dungeons). */
   sharedView: boolean;
+  /** True where the camera frames one room at a time instead of following. */
+  roomView: boolean;
+  /** Each walled-off run of floor, doorways counted as walls. */
+  rooms: TileRect[];
   plates: PlateSpec[];
   crates: CrateSpec[];
   doors: DoorSpec[];

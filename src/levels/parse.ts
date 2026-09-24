@@ -130,11 +130,59 @@ export function buildLevel(id: string, file: LevelFile): LevelData {
     mergeZones: mergeRects(merge),
     mobs,
     sharedView: Boolean(file.sharedView),
+    roomView: Boolean(file.roomView),
+    rooms: findRooms(solid, doors),
     plates,
     crates,
     doors,
     exits,
   };
+}
+
+/**
+ * The rooms a level is divided into, for dungeons the camera shows one at a
+ * time. A room is a run of floor walled off from the rest, with doorways
+ * counted as walls so two chambers joined by a door stay two rooms. The
+ * rectangle covers the wall around the floor, so framing it shows the room
+ * whole.
+ */
+function findRooms(solid: number[][], doors: readonly DoorSpec[]): TileRect[] {
+  const rows = solid.length;
+  const cols = solid[0]?.length ?? 0;
+  const blocked = solid.map((row) => row.map((t) => t >= 0));
+  for (const door of doors) blocked[door.row][door.col] = true;
+
+  const seen = blocked.map((row) => row.map(() => false));
+  const rooms: TileRect[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (blocked[row][col] || seen[row][col]) continue;
+      let minCol = col, maxCol = col, minRow = row, maxRow = row;
+      const queue: TilePos[] = [{ col, row }];
+      seen[row][col] = true;
+      for (let i = 0; i < queue.length; i++) {
+        const at = queue[i];
+        minCol = Math.min(minCol, at.col); maxCol = Math.max(maxCol, at.col);
+        minRow = Math.min(minRow, at.row); maxRow = Math.max(maxRow, at.row);
+        for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const c = at.col + dc;
+          const r = at.row + dr;
+          if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+          if (blocked[r][c] || seen[r][c]) continue;
+          seen[r][c] = true;
+          queue.push({ col: c, row: r });
+        }
+      }
+      // Grow by one so the room's own walls are inside the frame.
+      rooms.push({
+        col: Math.max(0, minCol - 1),
+        row: Math.max(0, minRow - 1),
+        cols: Math.min(cols, maxCol + 2) - Math.max(0, minCol - 1),
+        rows: Math.min(rows, maxRow + 2) - Math.max(0, minRow - 1),
+      });
+    }
+  }
+  return rooms;
 }
 
 function firstFree(solid: number[][]): TilePos | undefined {

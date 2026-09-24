@@ -108,7 +108,24 @@ export class GameScene extends Phaser.Scene {
       this.players[0],
       this.players[1],
       new Phaser.Geom.Rectangle(0, 0, width, height),
-      level.sharedView ? { startMerged: true, minZoom: SHARED_VIEW_MIN_ZOOM } : {},
+      level.sharedView
+        ? {
+            startMerged: true,
+            minZoom: SHARED_VIEW_MIN_ZOOM,
+            // One room at a time, the way an old dungeon does it.
+            rooms: level.roomView
+              ? level.rooms.map(
+                  (r) =>
+                    new Phaser.Geom.Rectangle(
+                      r.col * TILE_SIZE,
+                      r.row * TILE_SIZE,
+                      r.cols * TILE_SIZE,
+                      r.rows * TILE_SIZE,
+                    ),
+                )
+              : undefined,
+          }
+        : {},
     );
     this.cameras.cameras.forEach((cam) => cam.fadeIn(FADE_MS, 0, 0, 0));
 

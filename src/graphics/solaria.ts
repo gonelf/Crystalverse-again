@@ -14,10 +14,10 @@ export const SOLARIA_IMAGE = 'assets/solaria/tiles.png';
  */
 export const SOLARIA_TILES = {
   // The temple, below ground.
-  /** Plain tan temple floor, chipped here and there. */
-  floor: [393, 393, 393, 393, 393, 393, 393, 424],
-  /** Pale worked stone, for a floor that reads as built rather than cut. */
-  paved: [194],
+  /** Temple floor: big flagstones, seamed on every side so they tile into a grid. */
+  floor: [422],
+  /** Smaller stones, for a floor that reads as laid rather than cut. */
+  paved: [249],
   /** Roots pushing through a crack; transparent, so it lies over a floor. */
   vines: [243, 271],
   /** A carved stone disc set into the floor. */
@@ -28,8 +28,8 @@ export const SOLARIA_TILES = {
   wallFace: 163,
   /** A lit brazier on a stand. */
   brazier: 275,
-  /** A sealed urn. */
-  urn: 276,
+  /** A round clay urn. */
+  urn: 93,
   /** An altar with an offering still burning on it. */
   shrine: 360,
   /** An anvil in its frame. */

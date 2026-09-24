@@ -15,6 +15,11 @@ export interface SplitScreenOptions {
   startMerged?: boolean;
   /** Furthest the merged camera may zoom out while fitting both players in. */
   minZoom?: number;
+  /**
+   * Frame one of these rooms at a time instead of following the players, the
+   * way an old top-down dungeon does. Needs `startMerged`.
+   */
+  rooms?: Phaser.Geom.Rectangle[];
 }
 
 /**
@@ -38,6 +43,9 @@ export class SplitScreen {
   private readonly focus: Phaser.GameObjects.Zone;
   private readonly privateObjects: [GameObject[], GameObject[]] = [[], []];
   private readonly minZoom: number;
+  private readonly rooms: Phaser.Geom.Rectangle[];
+  /** The room being shown, in room mode. Changes only once both players are in a new one. */
+  private room?: Phaser.Geom.Rectangle;
   private othersVisibleOnLeft = false;
 
   constructor(
@@ -48,6 +56,7 @@ export class SplitScreen {
     options: SplitScreenOptions = {},
   ) {
     this.minZoom = options.minZoom ?? MERGE_MIN_ZOOM;
+    this.rooms = options.rooms ?? [];
     const { width, height } = scene.scale;
     this.focus = scene.add.zone(p1.x, p1.y, 1, 1);
 
@@ -67,6 +76,12 @@ export class SplitScreen {
     if (options.startMerged) {
       // Skip the transition: lay the merged view out before the first frame.
       this.progress = 1;
+      if (this.roomMode) {
+        // Open on the room P1 starts in, already framed.
+        this.room = this.roomAt(p1) ?? this.rooms[0];
+        this.left.stopFollow();
+        this.applyRoom(1);
+      }
       this.apply(1);
       this.left.centerOn(this.focus.x, this.focus.y);
     }
@@ -100,10 +115,58 @@ export class SplitScreen {
     this.apply(Phaser.Math.Easing.Sine.InOut(this.progress));
   }
 
+  private get roomMode(): boolean {
+    return this.rooms.length > 0;
+  }
+
+  /** The room a player is standing in, if any. */
+  private roomAt(p: Phaser.GameObjects.Components.Transform): Phaser.Geom.Rectangle | undefined {
+    return this.rooms.find((r) => r.contains(p.x, p.y));
+  }
+
   private apply(e: number): void {
+    if (this.roomMode) {
+      this.setOthersVisibleOnLeft(true);
+      this.applyRoom(0.12);
+      return;
+    }
     this.layoutViewports(e);
     this.setOthersVisibleOnLeft(this.progress > 0);
     this.updateFocus(e);
+  }
+
+  /**
+   * Frame the current room, cutting to a new one only once both players have
+   * walked into it. The viewport is sized to the room rather than the screen,
+   * so a room narrower or shorter than the window is letterboxed instead of
+   * letting the next room show past its walls. `lerp` is how far to move
+   * towards the target this frame; 1 snaps.
+   */
+  private applyRoom(lerp: number): void {
+    const here = this.roomAt(this.p1);
+    if (here && here === this.roomAt(this.p2)) this.room = here;
+    const room = this.room ?? this.roomAt(this.p1) ?? this.roomAt(this.p2);
+    if (!room) return;
+
+    const { width, height } = this.scene.scale;
+    const zoom = Math.min(width / room.width, height / room.height);
+    const viewWidth = Math.round(room.width * zoom);
+    const viewHeight = Math.round(room.height * zoom);
+    this.right.setVisible(false);
+    this.left
+      .setViewport(
+        Math.round((width - viewWidth) / 2),
+        Math.round((height - viewHeight) / 2),
+        viewWidth,
+        viewHeight,
+      )
+      .setZoom(zoom);
+
+    // Glide to the room's middle, so stepping through a door slides the view
+    // across rather than cutting.
+    const x = Phaser.Math.Linear(this.left.midPoint.x, room.centerX, lerp);
+    const y = Phaser.Math.Linear(this.left.midPoint.y, room.centerY, lerp);
+    this.left.centerOn(x, y);
   }
 
   private layoutViewports(e: number): void {

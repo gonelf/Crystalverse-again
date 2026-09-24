@@ -3,6 +3,7 @@
   "hint": "Walk into a crate to push it · weigh down every plate · R resets the vault",
   "tileset": "solaria",
   "sharedView": true,
+  "roomView": true,
   "exits": {
     "X": {
       "to": "overworld",

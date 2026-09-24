@@ -23,6 +23,12 @@ export interface LevelFile {
   tileset: TilesetKey;
   /** True for levels both players share one camera in (dungeons). */
   sharedView?: boolean;
+  /**
+   * Frame one room at a time, the way an old top-down dungeon does, instead of
+   * following the players. The camera cuts to the next room once both players
+   * are through the door. Needs `sharedView`.
+   */
+  roomView?: boolean;
   /** The level the game opens on. Exactly one level should set it. */
   start?: boolean;
   /** Where each exit mark in the layout leads. */

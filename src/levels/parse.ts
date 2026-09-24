@@ -8,7 +8,7 @@ import {
   revisionOf,
   type LevelFile,
 } from './format';
-import { FLOOR_CHAR, terrainOf, type Terrain } from './terrain';
+import { effectiveTileset, FLOOR_CHAR, terrainOf, type Terrain } from './terrain';
 import type {
   CrateSpec,
   DoorSpec,
@@ -120,7 +120,7 @@ export function buildLevel(id: string, file: LevelFile): LevelData {
     name: file.name || id,
     hint: file.hint ?? '',
     revision: revisionOf(file),
-    tileset: file.tileset,
+    tileset: effectiveTileset(file.tileset),
     cols,
     rows,
     spawns: [spawns[0] ?? fallback, spawns[1] ?? fallback],

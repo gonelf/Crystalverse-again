@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PLAYER_COLORS } from './config';
+import { SOLARIA_TILES } from './graphics/solaria';
 import { DUNGEON_TILES } from './graphics/textures';
 import { TILE_SIZE, type LevelData } from './levels';
 
@@ -11,6 +12,7 @@ const FRAME_COLOR = 0x000000;
 const PALETTES = {
   overworld: { floor: '#3f8f3a', solid: '#24552a', water: '#2f6fb8' },
   dungeon: { floor: '#2b3040', solid: '#5a6280', water: '#05070d' },
+  solaria: { floor: '#d89a70', solid: '#9d5252', water: '#05070d' },
 } as const;
 const ZONE_COLOR = '#9ad8ff';
 const EXIT_COLOR = '#ffd166';
@@ -22,8 +24,11 @@ function isOverworldWater(t: number): boolean {
   return row < 4 && col >= 16 && col < 22;
 }
 
+/** The tile a tileset uses for nothing at all, so the minimap can leave it blank. */
+const VOID_TILE = { dungeon: DUNGEON_TILES.void, solaria: SOLARIA_TILES.void } as const;
+
 const isDeep = (level: LevelData, t: number) =>
-  level.tileset === 'dungeon' ? t === DUNGEON_TILES.void : isOverworldWater(t);
+  level.tileset === 'overworld' ? isOverworldWater(t) : t === VOID_TILE[level.tileset];
 
 /** Draw a level once into a shared texture: ground, obstacles, merge zones and exits. */
 function ensureTerrainTexture(scene: Phaser.Scene, level: LevelData): string {

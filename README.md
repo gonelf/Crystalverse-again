@@ -74,12 +74,14 @@ id, and the file holds everything the game needs — no code changes to add one:
 }
 ```
 
-- `tileset` picks the art: `overworld` (grass, water, trees, plazas) or
-  `dungeon` (an Aztec temple). The same layout character means the matching
-  thing in either: `.` floor or grass, `#` carved wall or bush, `,` decoration
-  (vines underground, flowers outdoors), `=` a plaza the viewports merge over.
-  Outdoors adds `~` water, `T` tree and `^` rock; the temple adds `;` a painted
-  glyph and `*` a lit brazier.
+- `tileset` picks the art: `overworld` (grass, water, trees, plazas),
+  `dungeon` (an Aztec temple drawn in code) or `solaria` (see **Solaria art**).
+  The same layout character means the matching thing in each: `.` floor or
+  grass, `#` carved wall or bush, `,` decoration (vines underground, flowers
+  outdoors), `=` a plaza the viewports merge over. Outdoors adds `~` water,
+  `T` tree and `^` rock; both temple sets add `;` a carved glyph and `*` a lit
+  brazier. Because the characters line up, a level can switch art without its
+  layout changing.
 - Pieces are `1`/`2` player spawns, `o` crate, `a`..`f` plates with `A`..`F`
   as the door each group opens, `g`/`v` green and purple slimes.
 - `X`, `Y`, `Z` mark exits. Each one's entry in `exits` says which level it
@@ -89,6 +91,28 @@ id, and the file holds everything the game needs — no code changes to add one:
 - `"start": true` marks the level the game opens on.
 - `sharedView` keeps both players on one camera, which is what makes a dungeon
   a dungeon. Without it the screen splits and the `=` plazas merge it.
+
+## Solaria art
+
+The vault is set to the `solaria` tileset: 16x16 top-down pixel art from the
+[World of Solaria](https://jamiebrownhill.itch.io/) collection by Jamie
+Brownhill. **Its licence permits use but not redistribution**, so the art is
+not in this repository. It is dropped in locally instead:
+
+1. Download the [free demo pack](https://jamiebrownhill.itch.io/solaria-demo).
+2. Put its tile sheet at `public/assets/solaria/tiles.png`.
+
+`public/assets/solaria/` is git-ignored, so the file never gets committed.
+
+Nothing breaks without it. At startup the game asks the server whether the file
+is there; if it isn't, every level asking for `solaria` is drawn with the
+code-drawn `dungeon` tiles instead, and the editor's checks say so. That is what
+a fresh clone and the deployed build do, since neither has the art.
+
+Swapping in another sheet from the same collection — the paid
+[Mesoamerican Dungeon](https://jamiebrownhill.itch.io/world-of-solaria-mesoamerican-dungeon-tileset)
+tileset is the closest match for the vault — means replacing that one file and
+the tile indices in `src/graphics/solaria.ts`. Everything else stays put.
 
 ## The editor
 
@@ -139,6 +163,11 @@ backend to store them; nothing here talks to a server at runtime.)
   the transition entirely, which is what dungeons use.
 - `SplitScreen.hideFromOther(owner, ...objects)` makes anything private to one
   player, e.g. clues only P1 can see.
+- `src/graphics/solaria.ts` holds the Solaria sheet's tile indices and the
+  startup check for whether the art is installed. `effectiveTileset()` in
+  `terrain.ts` is what turns a `solaria` level into a `dungeon` one when it
+  isn't, and it runs before the first level is built so nothing has to be
+  rebuilt later.
 - `src/levels/` loads and builds levels. `data/*.json` are the levels
   themselves, `format.ts` describes the file, `terrain.ts` maps layout
   characters to tiles for each tileset, `parse.ts` turns a file into the

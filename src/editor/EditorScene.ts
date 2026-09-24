@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { solariaAvailable, SOLARIA_IMAGE, SOLARIA_TILESET } from '../graphics/solaria';
 import { createGeneratedTextures, TEXTURES } from '../graphics/textures';
 import {
   buildLevel,
@@ -69,6 +70,7 @@ export class EditorScene extends Phaser.Scene {
     this.load.spritesheet('hero', 'assets/character.png', frame);
     this.load.spritesheet('hero-p2', 'assets/character-p2.png', frame);
     this.load.spritesheet('slime', 'assets/slime.png', { frameWidth: 16, frameHeight: 16 });
+    if (solariaAvailable()) this.load.image(SOLARIA_TILESET, SOLARIA_IMAGE);
   }
 
   create(): void {

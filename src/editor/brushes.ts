@@ -5,6 +5,7 @@ import {
   MOB_CHARS,
   PLATE_CHARS,
   SPAWN_CHARS,
+  effectiveTileset,
   TERRAIN,
   type TilesetKey,
 } from '../levels';
@@ -24,7 +25,7 @@ const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
 /** Whatever the level's tileset can paint, plus the pieces every level shares. */
 export function brushesFor(tileset: TilesetKey): Brush[] {
-  const terrain: Brush[] = Object.entries(TERRAIN[tileset]).map(([char, t]) => ({
+  const terrain: Brush[] = Object.entries(TERRAIN[effectiveTileset(tileset)]).map(([char, t]) => ({
     char,
     label: t.label,
     key: t.key,

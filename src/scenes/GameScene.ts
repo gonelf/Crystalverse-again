@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { solariaAvailable, SOLARIA_IMAGE, SOLARIA_TILESET } from '../graphics/solaria';
 import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS, SHARED_VIEW_MIN_ZOOM } from '../config';
 import { createGeneratedTextures, TEXTURES } from '../graphics/textures';
 import { HeartPickup } from '../HeartPickup';
@@ -77,6 +78,7 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet('hero-attack', 'assets/character.png', attackFrame);
     this.load.spritesheet('hero-p2-attack', 'assets/character-p2.png', attackFrame);
     this.load.spritesheet('slime', 'assets/slime.png', { frameWidth: 16, frameHeight: 16 });
+    if (solariaAvailable()) this.load.image(SOLARIA_TILESET, SOLARIA_IMAGE);
   }
 
   create(): void {

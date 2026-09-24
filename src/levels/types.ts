@@ -4,7 +4,7 @@ export const TILE_SIZE = 16;
 export type LevelId = string;
 
 /** Which tileset image the level's tile indices point into. */
-export type TilesetKey = 'overworld' | 'dungeon';
+export type TilesetKey = 'overworld' | 'dungeon' | 'solaria';
 
 export interface TilePos {
   col: number;

@@ -1,3 +1,4 @@
+import { solariaAvailable, SOLARIA_TILES } from '../graphics/solaria';
 import { DUNGEON_TILES } from '../graphics/textures';
 import type { TilesetKey } from './types';
 
@@ -101,21 +102,77 @@ const DUNGEON_TERRAIN: Record<string, Terrain> = {
   },
 };
 
+
+/** Tile indices into public/assets/solaria/tiles.png (28 tiles per row). */
+const S = SOLARIA_TILES;
+
+const SOLARIA_TERRAIN: Record<string, Terrain> = {
+  '.': { label: 'Temple floor', ground: [...S.floor], color: '#d89a70', key: '1' },
+  ',': {
+    label: 'Vines',
+    ground: [...S.floor],
+    decor: [...S.vines],
+    color: '#8a5a48',
+    key: '2',
+  },
+  ';': {
+    label: 'Carved disc',
+    ground: [...S.floor],
+    decor: [S.glyph],
+    color: '#8c6d6c',
+    key: '3',
+  },
+  '#': {
+    label: 'Carved wall',
+    ground: [S.void],
+    solid: [...S.wall],
+    solidLit: S.wallFace,
+    color: '#9d5252',
+    key: '4',
+  },
+  '*': {
+    label: 'Brazier',
+    ground: [...S.floor],
+    solid: [S.brazier],
+    color: '#ff8f3a',
+    key: '5',
+  },
+  ' ': { label: 'Void', ground: [S.void], solid: [S.void], color: '#120f14', key: '6' },
+  '=': { label: 'Plaza (merge)', ground: [...S.plaza], mergeZone: true, color: '#b4c5c1', key: '7' },
+};
+
 export const TERRAIN: Record<TilesetKey, Record<string, Terrain>> = {
   overworld: OVERWORLD_TERRAIN,
   dungeon: DUNGEON_TERRAIN,
+  solaria: SOLARIA_TERRAIN,
 };
 
 /** The character a tileset uses for plain walkable ground. */
 export const FLOOR_CHAR = '.';
 
-export const TILESETS: TilesetKey[] = ['overworld', 'dungeon'];
+export const TILESETS: TilesetKey[] = ['overworld', 'dungeon', 'solaria'];
+
+/**
+ * The tileset a level is actually drawn with. Solaria's art is not committed,
+ * so a level asking for it falls back to the dungeon's code-drawn tiles
+ * wherever the file is missing — a build without it still runs.
+ */
+export function effectiveTileset(tileset: TilesetKey): TilesetKey {
+  return tileset === 'solaria' && !solariaAvailable() ? 'dungeon' : tileset;
+}
 
 /** Image key each tileset's tile indices point into. */
 export function tilesetImage(tileset: TilesetKey): string {
-  return tileset === 'dungeon' ? 'dungeon-tiles' : 'overworld';
+  switch (effectiveTileset(tileset)) {
+    case 'dungeon':
+      return 'dungeon-tiles';
+    case 'solaria':
+      return 'solaria-tiles';
+    default:
+      return 'overworld';
+  }
 }
 
 export function terrainOf(tileset: TilesetKey, char: string): Terrain | undefined {
-  return TERRAIN[tileset][char];
+  return TERRAIN[effectiveTileset(tileset)][char];
 }

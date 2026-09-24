@@ -8,6 +8,7 @@ import {
   type LevelFile,
   type TilePos,
 } from '../levels';
+import { solariaAvailable } from '../graphics/solaria';
 
 export interface Issue {
   /** An error means the level won't play properly; a warning is worth a look. */
@@ -73,6 +74,15 @@ export function validateLevel(id: string, file: LevelFile, levels: LevelLookup):
   const width = layout[0].length;
   if (layout.some((row) => row.length !== width)) {
     issues.push({ level: 'error', message: 'Rows are not all the same width.' });
+  }
+
+  // Solaria's art isn't in the repo, so say so rather than quietly drawing the
+  // dungeon tiles instead.
+  if (file.tileset === 'solaria' && !solariaAvailable()) {
+    issues.push({
+      level: 'warning',
+      message: 'Solaria art not installed — drawn with the dungeon tiles. See the README.',
+    });
   }
 
   for (const ch of SPAWN_CHARS) {

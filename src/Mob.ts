@@ -6,7 +6,7 @@ import {
   MOB_LEASH,
   MOB_LOSE_RANGE,
 } from './config';
-import type { MobKind } from './level';
+import type { MobKind } from './levels';
 
 interface MobStats {
   hp: number;

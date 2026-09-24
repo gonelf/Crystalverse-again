@@ -1,10 +1,32 @@
 import Phaser from 'phaser';
-import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS } from '../config';
-import { LEVEL, TILE_SIZE, type TileRect } from '../level';
+import {
+  applySolariaPieceTextures,
+  solariaAvailable,
+  SOLARIA_IMAGE,
+  SOLARIA_TILESET,
+} from '../graphics/solaria';
+import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS, SHARED_VIEW_MIN_ZOOM } from '../config';
+import { createGeneratedTextures, TEXTURES } from '../graphics/textures';
 import { HeartPickup } from '../HeartPickup';
+import {
+  getLevel,
+  hasDraft,
+  hasLevel,
+  isLevelId,
+  startLevel,
+  TILE_SIZE,
+  type ExitSpec,
+  type LevelData,
+  type LevelId,
+  tilesetImage,
+  type TilePos,
+  type TileRect,
+} from '../levels';
 import { Mob } from '../Mob';
 import { Player } from '../Player';
+import { PuzzleSystem } from '../puzzle/PuzzleSystem';
 import { SplitScreen } from '../SplitScreen';
+import { UI_STATE, type LevelState } from '../uiState';
 
 export const SPLIT_PROGRESS_EVENT = 'split-progress';
 /** Emitted every frame with both players, for the minimaps. */
@@ -13,19 +35,43 @@ export const PLAYERS_MOVED_EVENT = 'players-moved';
 export const HEALTH_EVENT = 'player-health';
 
 const PLAYER_TEXTURES = ['hero', 'hero-p2'] as const;
+const FADE_MS = 280;
+
+export interface GameSceneData {
+  levelId?: LevelId;
+  /** Exit mark in this level to arrive at, named by the exit that led here. */
+  arriveAt?: string;
+}
 
 export class GameScene extends Phaser.Scene {
+  private level!: LevelData;
   private players!: [Player, Player];
   private split!: SplitScreen;
+  private puzzle?: PuzzleSystem;
   private mergeZones: Phaser.Geom.Rectangle[] = [];
+  private exits: Array<{ spec: ExitSpec; area: Phaser.Geom.Rectangle }> = [];
   private mobs: Mob[] = [];
   /** Invisible walls over the merge zones that keep mobs out, so plazas are safe. */
   private safeZones!: Phaser.Physics.Arcade.StaticGroup;
   private pickups!: Phaser.Physics.Arcade.Group;
   private lastHp = '';
+  private travelling = false;
+  private arriveAt?: string;
 
   constructor() {
     super('game');
+  }
+
+  init(data: GameSceneData): void {
+    const requested = data.levelId ?? levelFromQuery() ?? startLevel();
+    this.level = getLevel(hasLevel(requested) ? requested : startLevel());
+    this.arriveAt = data.arriveAt;
+    this.mergeZones = [];
+    this.exits = [];
+    this.mobs = [];
+    this.puzzle = undefined;
+    this.lastHp = '';
+    this.travelling = false;
   }
 
   preload(): void {
@@ -37,31 +83,30 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet('hero-attack', 'assets/character.png', attackFrame);
     this.load.spritesheet('hero-p2-attack', 'assets/character-p2.png', attackFrame);
     this.load.spritesheet('slime', 'assets/slime.png', { frameWidth: 16, frameHeight: 16 });
+    if (solariaAvailable()) this.load.image(SOLARIA_TILESET, SOLARIA_IMAGE);
   }
 
   create(): void {
-    const width = LEVEL.cols * TILE_SIZE;
-    const height = LEVEL.rows * TILE_SIZE;
+    const level = this.level;
+    createGeneratedTextures(this);
+    applySolariaPieceTextures(this);
+
+    const width = level.cols * TILE_SIZE;
+    const height = level.rows * TILE_SIZE;
     this.physics.world.setBounds(0, 0, width, height);
 
     const solid = this.buildTilemap();
     this.safeZones = this.physics.add.staticGroup();
-    for (const z of LEVEL.mergeZones) this.addMergeZone(z);
+    for (const zone of level.mergeZones) this.addMergeZone(zone);
+    for (const exit of level.exits) this.addExit(exit);
 
-    for (const key of PLAYER_TEXTURES) Player.createAnimations(this, key);
-    const [s1, s2] = LEVEL.spawns.map(({ col, row }) => ({
-      x: (col + 0.5) * TILE_SIZE,
-      y: (row + 0.5) * TILE_SIZE,
-    }));
-    this.players = [
-      new Player(this, s1.x, s1.y, PLAYER_TEXTURES[0], {
-        up: 'W', down: 'S', left: 'A', right: 'D', attack: 'SPACE', padIndex: 0,
-      }),
-      new Player(this, s2.x, s2.y, PLAYER_TEXTURES[1], {
-        up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', attack: 'ENTER', padIndex: 1,
-      }),
-    ];
+    this.players = this.spawnPlayers();
     this.physics.add.collider(this.players, solid);
+
+    if (level.plates.length || level.crates.length || level.doors.length) {
+      this.puzzle = new PuzzleSystem(this, level, this.players);
+      this.physics.add.collider(this.players, this.puzzle.obstacles);
+    }
     this.spawnMobs(solid);
 
     this.split = new SplitScreen(
@@ -69,9 +114,36 @@ export class GameScene extends Phaser.Scene {
       this.players[0],
       this.players[1],
       new Phaser.Geom.Rectangle(0, 0, width, height),
+      level.sharedView
+        ? {
+            startMerged: true,
+            minZoom: SHARED_VIEW_MIN_ZOOM,
+            // One room at a time, the way an old dungeon does it.
+            rooms: level.roomView
+              ? level.rooms.map(
+                  (r) =>
+                    new Phaser.Geom.Rectangle(
+                      r.col * TILE_SIZE,
+                      r.row * TILE_SIZE,
+                      r.cols * TILE_SIZE,
+                      r.rows * TILE_SIZE,
+                    ),
+                )
+              : undefined,
+          }
+        : {},
     );
+    this.cameras.cameras.forEach((cam) => cam.fadeIn(FADE_MS, 0, 0, 0));
 
-    this.scene.launch('ui');
+    this.publishState();
+    if (!this.scene.isActive('ui')) this.scene.launch('ui');
+
+    // Crates can be pushed into a corner; R puts the room back the way it was.
+    // Keys are destroyed when the scene shuts down, so this doesn't stack up.
+    if (this.puzzle) {
+      this.input.keyboard?.addKey('R').on('down', () => this.restartLevel(this.level.id, this.arriveAt));
+    }
+    this.input.keyboard?.addKey('F2').on('down', () => this.openEditor());
 
     if (import.meta.env.DEV) {
       (window as unknown as { coop: unknown }).coop = { scene: this, split: this.split };
@@ -84,7 +156,8 @@ export class GameScene extends Phaser.Scene {
       if (swing) this.swordHits(p, swing, i as 0 | 1);
     });
     for (const m of this.mobs) m.update(time, this.players);
-    this.split.update(this.bothInSameMergeZone(), delta);
+    this.puzzle?.update(delta);
+    this.split.update(this.level.sharedView || this.bothInSameMergeZone(), delta);
     this.game.events.emit(SPLIT_PROGRESS_EVENT, this.split.progress);
     this.game.events.emit(PLAYERS_MOVED_EVENT, this.players);
 
@@ -93,11 +166,12 @@ export class GameScene extends Phaser.Scene {
       this.lastHp = hp.join();
       this.game.events.emit(HEALTH_EVENT, hp);
     }
+    this.checkExits();
   }
 
   private spawnMobs(solid: Phaser.Tilemaps.TilemapLayer): void {
     Mob.createAnimations(this);
-    this.mobs = LEVEL.mobs.map(({ col, row, kind }) => new Mob(
+    this.mobs = this.level.mobs.map(({ col, row, kind }) => new Mob(
       this,
       new Phaser.Math.Vector2((col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE),
       kind,
@@ -105,6 +179,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.mobs, solid);
     this.physics.add.collider(this.mobs, this.safeZones);
     this.physics.add.collider(this.mobs, this.mobs);
+    if (this.puzzle) this.physics.add.collider(this.mobs, this.puzzle.obstacles);
 
     // Hearts dropped by mobs. Only a hurt player picks one up, so a player at
     // full health leaves it for their partner.
@@ -152,24 +227,52 @@ export class GameScene extends Phaser.Scene {
 
   /** Builds the ground, decor and solid layers and returns the collidable one. */
   private buildTilemap(): Phaser.Tilemaps.TilemapLayer {
+    const { level } = this;
     const map = this.make.tilemap({
       tileWidth: TILE_SIZE,
       tileHeight: TILE_SIZE,
-      width: LEVEL.cols,
-      height: LEVEL.rows,
+      width: level.cols,
+      height: level.rows,
     });
-    const tileset = map.addTilesetImage('overworld')!;
+    const tileset = map.addTilesetImage('tiles', tilesetImage(level.tileset), TILE_SIZE, TILE_SIZE)!;
 
     const layer = (name: string, data: number[][]) => {
       const l = map.createBlankLayer(name, tileset)!;
       data.forEach((row, r) => row.forEach((t, c) => t >= 0 && l.putTileAt(t, c, r)));
       return l;
     };
-    layer('ground', LEVEL.ground);
-    layer('decor', LEVEL.decor);
-    const solid = layer('solid', LEVEL.solid);
+    layer('ground', level.ground);
+    layer('decor', level.decor);
+    const solid = layer('solid', level.solid);
     solid.setCollisionByExclusion([-1]);
     return solid;
+  }
+
+  private spawnPlayers(): [Player, Player] {
+    for (const key of PLAYER_TEXTURES) Player.createAnimations(this, key);
+    const [s1, s2] = this.spawnTiles().map(({ col, row }) => ({
+      x: (col + 0.5) * TILE_SIZE,
+      y: (row + 0.5) * TILE_SIZE,
+    }));
+    return [
+      new Player(this, s1.x, s1.y, PLAYER_TEXTURES[0], {
+        up: 'W', down: 'S', left: 'A', right: 'D', attack: 'SPACE', padIndex: 0,
+      }),
+      new Player(this, s2.x, s2.y, PLAYER_TEXTURES[1], {
+        up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', attack: 'ENTER', padIndex: 1,
+      }),
+    ];
+  }
+
+  /**
+   * Players come in beside the exit the door they used points at, and start at
+   * the level's own spawns otherwise.
+   */
+  private spawnTiles(): readonly [TilePos, TilePos] {
+    const door = this.level.exits.find((e) => e.mark === this.arriveAt);
+    const landing = door?.arrival ?? [];
+    if (!landing.length) return this.level.spawns;
+    return [landing[0], landing[landing.length - 1]];
   }
 
   private bothInSameMergeZone(): boolean {
@@ -178,12 +281,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private addMergeZone(t: TileRect): void {
-    const r = new Phaser.Geom.Rectangle(
-      t.col * TILE_SIZE,
-      t.row * TILE_SIZE,
-      t.cols * TILE_SIZE,
-      t.rows * TILE_SIZE,
-    );
+    const r = toWorldRect(t);
     this.mergeZones.push(r);
     const wall = this.add.zone(r.centerX, r.centerY, r.width, r.height);
     this.safeZones.add(wall);
@@ -199,4 +297,78 @@ export class GameScene extends Phaser.Scene {
       ease: 'Sine.InOut',
     });
   }
+
+  /** Stairs both players have to stand on together to travel to another level. */
+  private addExit(spec: ExitSpec): void {
+    const area = toWorldRect(spec.rect);
+    this.exits.push({ spec, area });
+
+    for (let r = 0; r < spec.rect.rows; r++) {
+      for (let c = 0; c < spec.rect.cols; c++) {
+        this.add
+          .image((spec.rect.col + c + 0.5) * TILE_SIZE, (spec.rect.row + r + 0.5) * TILE_SIZE, TEXTURES.stairs)
+          .setDepth(2);
+      }
+    }
+    const label = this.add
+      .text(area.centerX, area.top - 6, spec.label, {
+        fontFamily: 'monospace',
+        fontSize: '8px',
+        color: '#d8dff0',
+        stroke: '#05070d',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(20);
+    this.tweens.add({ targets: label, alpha: 0.45, duration: 900, yoyo: true, repeat: -1 });
+  }
+
+  private checkExits(): void {
+    if (this.travelling) return;
+    const [a, b] = this.players;
+    const exit = this.exits.find(
+      ({ area }) => area.contains(a.feet.x, a.feet.y) && area.contains(b.feet.x, b.feet.y),
+    );
+    // An exit pointing at a level that no longer exists just does nothing;
+    // the editor's checks flag it.
+    if (exit && hasLevel(exit.spec.to)) this.restartLevel(exit.spec.to, exit.spec.arriveAt);
+  }
+
+  private restartLevel(levelId: LevelId, arriveAt?: string): void {
+    if (this.travelling) return;
+    this.travelling = true;
+    this.cameras.cameras.forEach((cam) => cam.fadeOut(FADE_MS, 0, 0, 0));
+    this.time.delayedCall(FADE_MS, () => {
+      this.scene.restart({ levelId, arriveAt } satisfies GameSceneData);
+    });
+  }
+
+  /** Hands the vault over to the layout editor. */
+  private openEditor(): void {
+    this.scene.stop('ui');
+    this.scene.start('editor', { levelId: this.level.id });
+  }
+
+  private publishState(): void {
+    const { id, name, hint, sharedView } = this.level;
+    const draft = hasDraft(id);
+    this.registry.set(UI_STATE.level, { id, name, hint, sharedView, draft } satisfies LevelState);
+    this.registry.set(UI_STATE.puzzle, this.puzzle ? this.puzzle.status : null);
+  }
+}
+
+function toWorldRect(t: TileRect): Phaser.Geom.Rectangle {
+  return new Phaser.Geom.Rectangle(
+    t.col * TILE_SIZE,
+    t.row * TILE_SIZE,
+    t.cols * TILE_SIZE,
+    t.rows * TILE_SIZE,
+  );
+}
+
+/** `?level=dungeon` jumps straight into a level while working on it. */
+function levelFromQuery(): LevelId | undefined {
+  if (typeof location === 'undefined') return undefined;
+  const requested = new URLSearchParams(location.search).get('level');
+  return isLevelId(requested) ? requested : undefined;
 }

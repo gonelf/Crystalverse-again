@@ -33,6 +33,9 @@ const STICK_DEADZONE = 0.2;
 /** Feet sit 22px below the top of every frame; see the body setup in the constructor. */
 const FEET_Y = 22;
 const FEET_SIZE = { width: 10, height: 8 };
+const FRAME_HEIGHT = 32;
+/** Distance from the sprite's centre down to the centre of its feet. */
+const FEET_DY = FEET_Y + FEET_SIZE.height / 2 - FRAME_HEIGHT / 2;
 /** Sword hitbox: a square this big, centred this far in front of the feet. */
 const SWORD_SIZE = 18;
 const SWORD_REACH = 13;
@@ -52,6 +55,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   /** Register the walk/idle/attack animations for a character sheet. Call once per texture. */
   static createAnimations(scene: Phaser.Scene, texture: string): void {
+    if (scene.anims.exists(`${texture}-idle-down`)) return;
     for (const [facing, row] of Object.entries(FACING_ROWS)) {
       const first = row * SHEET_COLUMNS;
       scene.anims.create({
@@ -83,8 +87,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     private readonly sheet: string,
     private readonly controls: PlayerControls,
   ) {
-    super(scene, x, y, sheet, 0);
-    this.spawn = new Phaser.Math.Vector2(x, y);
+    // `x`/`y` is where the player's feet stand, not the centre of the sprite.
+    super(scene, x, y - FEET_DY, sheet, 0);
+    this.spawn = new Phaser.Math.Vector2(this.x, this.y);
     scene.add.existing(this);
     scene.physics.add.existing(this);
     // Collide with the feet only, so heads can overlap things behind them.
@@ -116,6 +121,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return this.body.center;
   }
 
+  /** This frame's movement input, -1..1 per axis. Zero-length while idle. */
+  get moveInput(): Phaser.Math.Vector2 {
+    return this.move;
+  }
+
   /**
    * Call every frame. Returns the sword hitbox on the frame a swing starts,
    * otherwise null.
@@ -124,12 +134,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const now = this.scene.time.now;
     this.setDepth(10 + this.y / 10000);
     this.setAlpha(now < this.invulnerableUntil && Math.floor(now / 80) % 2 === 0 ? 0.35 : 1);
-    if (!this.alive) return null;
+    // Anything that stops the player moving also stops them leaning on a crate.
+    if (!this.alive) return this.stopMoving();
 
-    if (now < this.knockedUntil) return null;
+    if (now < this.knockedUntil) return this.stopMoving();
     if (this.attacking) {
       this.setVelocity(0, 0);
-      return null;
+      return this.stopMoving();
     }
 
     const pad = this.scene.input.gamepad?.getPad(this.controls.padIndex);
@@ -191,6 +202,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       SWORD_SIZE,
       SWORD_SIZE,
     );
+  }
+
+  /** Clears this frame's input, so `moveInput` never reports a stale direction. */
+  private stopMoving(): null {
+    this.move.set(0, 0);
+    return null;
   }
 
   /** Out of hearts: fall over, then come back at the spawn point with full health. */

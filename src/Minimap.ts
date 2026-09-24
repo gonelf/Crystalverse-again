@@ -1,41 +1,66 @@
 import Phaser from 'phaser';
 import { PLAYER_COLORS } from './config';
-import { LEVEL, TILE_SIZE } from './level';
+import { SOLARIA_TILES } from './graphics/solaria';
+import { DUNGEON_TILES } from './graphics/textures';
+import { TILE_SIZE, type LevelData, type TilesetKey } from './levels';
 
 /** Minimap pixels per level tile. */
 const SCALE = 3;
 const PADDING = 3;
-const COLORS = {
-  grass: '#3f8f3a',
-  solid: '#24552a',
-  water: '#2f6fb8',
-  plaza: '#9ad8ff',
-  frame: 0x000000,
-};
+const FRAME_COLOR = 0x000000;
 
-/** Water is the only solid tile in the 6x4 block starting at tile 16; see level.ts. */
-function isWater(t: number): boolean {
+const PALETTES = {
+  overworld: { floor: '#3f8f3a', solid: '#24552a', water: '#2f6fb8' },
+  dungeon: { floor: '#2b3040', solid: '#5a6280', water: '#05070d' },
+  solaria: { floor: '#d89a70', solid: '#9d5252', water: '#05070d' },
+  'solaria-outdoors': { floor: '#2eb85c', solid: '#166b3f', water: '#4d9be6' },
+} as const satisfies Record<TilesetKey, { floor: string; solid: string; water: string }>;
+const ZONE_COLOR = '#9ad8ff';
+const EXIT_COLOR = '#ffd166';
+
+/** Water is the only solid tile in the 6x4 block starting at tile 16; see overworld.ts. */
+function isOverworldWater(t: number): boolean {
   const col = t % 40;
   const row = Math.floor(t / 40);
   return row < 4 && col >= 16 && col < 22;
 }
 
-/** Draw the level once into a shared texture: ground, obstacles, water and merge zones. */
-function ensureTerrainTexture(scene: Phaser.Scene): string {
-  const key = 'minimap-terrain';
+/**
+ * Tiles the minimap draws as depth rather than obstacle: water outdoors, and
+ * the nothing beyond a dungeon's walls.
+ */
+const isDeepTile: Record<TilesetKey, (t: number) => boolean> = {
+  overworld: isOverworldWater,
+  dungeon: (t) => t === DUNGEON_TILES.void,
+  solaria: (t) => t === SOLARIA_TILES.void,
+  'solaria-outdoors': (t) => SOLARIA_TILES.water.includes(t as never),
+};
+
+const isDeep = (level: LevelData, t: number) => isDeepTile[level.tileset](t);
+
+/** Draw a level once into a shared texture: ground, obstacles, merge zones and exits. */
+function ensureTerrainTexture(scene: Phaser.Scene, level: LevelData): string {
+  // Keyed on the revision too, so an edited layout doesn't reuse a stale map.
+  const key = `minimap-${level.id}-${level.revision}`;
   if (scene.textures.exists(key)) return key;
-  const tex = scene.textures.createCanvas(key, LEVEL.cols * SCALE, LEVEL.rows * SCALE)!;
+  const tex = scene.textures.createCanvas(key, level.cols * SCALE, level.rows * SCALE)!;
   const ctx = tex.getContext();
-  for (let r = 0; r < LEVEL.rows; r++) {
-    for (let c = 0; c < LEVEL.cols; c++) {
-      const s = LEVEL.solid[r][c];
-      ctx.fillStyle = s < 0 ? COLORS.grass : isWater(s) ? COLORS.water : COLORS.solid;
+  const palette = PALETTES[level.tileset];
+  for (let r = 0; r < level.rows; r++) {
+    for (let c = 0; c < level.cols; c++) {
+      const s = level.solid[r][c];
+      ctx.fillStyle = s < 0 ? palette.floor : isDeep(level, s) ? palette.water : palette.solid;
       ctx.fillRect(c * SCALE, r * SCALE, SCALE, SCALE);
     }
   }
-  ctx.fillStyle = COLORS.plaza;
-  for (const z of LEVEL.mergeZones) {
+  ctx.fillStyle = ZONE_COLOR;
+  for (const z of level.mergeZones) {
     ctx.fillRect(z.col * SCALE, z.row * SCALE, z.cols * SCALE, z.rows * SCALE);
+  }
+  // Stairs are worth finding, so they get their own colour.
+  ctx.fillStyle = EXIT_COLOR;
+  for (const { rect } of level.exits) {
+    ctx.fillRect(rect.col * SCALE, rect.row * SCALE, rect.cols * SCALE, rect.rows * SCALE);
   }
   tex.refresh();
   return key;
@@ -47,15 +72,23 @@ function ensureTerrainTexture(scene: Phaser.Scene): string {
  * describing where they are and heading for the plazas.
  */
 export class Minimap extends Phaser.GameObjects.Container {
-  static readonly width = LEVEL.cols * SCALE + PADDING * 2;
-  static readonly height = LEVEL.rows * SCALE + PADDING * 2;
+  readonly frameWidth: number;
+  readonly frameHeight: number;
 
   private readonly dot: Phaser.GameObjects.Rectangle;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, private readonly owner: 0 | 1) {
-    super(scene, x, y);
-    const frame = scene.add.rectangle(0, 0, Minimap.width, Minimap.height, COLORS.frame, 0.6).setOrigin(0);
-    const terrain = scene.add.image(PADDING, PADDING, ensureTerrainTexture(scene)).setOrigin(0).setAlpha(0.9);
+  constructor(scene: Phaser.Scene, level: LevelData, private readonly owner: 0 | 1) {
+    super(scene, 0, 0);
+    this.frameWidth = level.cols * SCALE + PADDING * 2;
+    this.frameHeight = level.rows * SCALE + PADDING * 2;
+
+    const frame = scene.add
+      .rectangle(0, 0, this.frameWidth, this.frameHeight, FRAME_COLOR, 0.6)
+      .setOrigin(0);
+    const terrain = scene.add
+      .image(PADDING, PADDING, ensureTerrainTexture(scene, level))
+      .setOrigin(0)
+      .setAlpha(0.9);
     this.dot = scene.add.rectangle(0, 0, 6, 6, PLAYER_COLORS[owner]).setStrokeStyle(1, 0xffffff);
     this.add([frame, terrain, this.dot]);
     scene.add.existing(this);

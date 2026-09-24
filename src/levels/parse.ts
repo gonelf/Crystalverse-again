@@ -140,6 +140,14 @@ export function buildLevel(id: string, file: LevelFile): LevelData {
 }
 
 /**
+ * How much wall to keep inside a room's frame. Two tiles, so a wall reads as a
+ * thickness rather than a line; rooms meant to be framed are built with walls
+ * at least this thick, and a shared wall of exactly this thickness puts the
+ * two frames flush without either showing the other's floor.
+ */
+const ROOM_FRAME_PAD = 2;
+
+/**
  * The rooms a level is divided into, for dungeons the camera shows one at a
  * time. A room is a run of floor walled off from the rest, with doorways
  * counted as walls so two chambers joined by a door stay two rooms. The
@@ -173,12 +181,15 @@ function findRooms(solid: number[][], doors: readonly DoorSpec[]): TileRect[] {
           queue.push({ col: c, row: r });
         }
       }
-      // Grow by one so the room's own walls are inside the frame.
+      // Grow outwards so the room's own walls are inside the frame.
+      const P = ROOM_FRAME_PAD;
+      const left = Math.max(0, minCol - P);
+      const top = Math.max(0, minRow - P);
       rooms.push({
-        col: Math.max(0, minCol - 1),
-        row: Math.max(0, minRow - 1),
-        cols: Math.min(cols, maxCol + 2) - Math.max(0, minCol - 1),
-        rows: Math.min(rows, maxRow + 2) - Math.max(0, minRow - 1),
+        col: left,
+        row: top,
+        cols: Math.min(cols, maxCol + 1 + P) - left,
+        rows: Math.min(rows, maxRow + 1 + P) - top,
       });
     }
   }

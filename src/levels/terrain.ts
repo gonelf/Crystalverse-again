@@ -131,6 +131,34 @@ const DUNGEON_TERRAIN: Record<string, Terrain> = {
     color: '#5a3a30',
     key: 'k',
   },
+  t: {
+    label: 'Banner',
+    ground: [DUNGEON_TILES.wallFace],
+    solid: [DUNGEON_TILES.wall],
+    color: '#4d80cd',
+    key: 'b',
+  },
+  m: {
+    label: 'Niche',
+    ground: [DUNGEON_TILES.wallFace],
+    solid: [DUNGEON_TILES.wall],
+    color: '#3b2a2e',
+    key: 'm',
+  },
+  k: {
+    label: 'Chest',
+    ground: [DUNGEON_TILES.floor],
+    solid: [DUNGEON_TILES.wall],
+    color: '#e83b3b',
+    key: 'c',
+  },
+  r: {
+    label: 'Bones',
+    ground: [DUNGEON_TILES.floor],
+    decor: [DUNGEON_TILES.glyph],
+    color: '#c7dcd0',
+    key: 'x',
+  },
 };
 
 
@@ -175,6 +203,12 @@ const SOLARIA_TERRAIN: Record<string, Terrain> = {
   s: { label: 'Shrine', ground: [...S.floor], solid: [S.shrine], color: '#ffb457', key: '0' },
   n: { label: 'Anvil', ground: [...S.floor], solid: [S.anvil], color: '#8d8d99', key: 'j' },
   h: { label: 'Hearth', ground: [...S.floor], solid: [S.hearth], color: '#5a3a30', key: 'k' },
+  // Wall dressing: painted over the lit wall face, so it sits on the wall the
+  // room looks at rather than floating.
+  t: { label: 'Banner', ground: [S.wallFace], solid: [S.banner], color: '#4d80cd', key: 'b' },
+  m: { label: 'Niche', ground: [S.wallFace], solid: [S.niche], color: '#3b2a2e', key: 'm' },
+  k: { label: 'Chest', ground: [...S.floor], solid: [S.chest], color: '#e83b3b', key: 'c' },
+  r: { label: 'Bones', ground: [...S.floor], decor: [S.bones], color: '#c7dcd0', key: 'x' },
 };
 
 /**

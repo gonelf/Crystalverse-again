@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
-import { solariaAvailable, SOLARIA_IMAGE, SOLARIA_TILESET } from '../graphics/solaria';
+import {
+  applySolariaPieceTextures,
+  solariaAvailable,
+  SOLARIA_IMAGE,
+  SOLARIA_TILESET,
+} from '../graphics/solaria';
 import { MOB_AGGRO_RANGE, MOB_RESPAWN_MS, SHARED_VIEW_MIN_ZOOM } from '../config';
 import { createGeneratedTextures, TEXTURES } from '../graphics/textures';
 import { HeartPickup } from '../HeartPickup';
@@ -84,6 +89,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     const level = this.level;
     createGeneratedTextures(this);
+    applySolariaPieceTextures(this);
 
     const width = level.cols * TILE_SIZE;
     const height = level.rows * TILE_SIZE;

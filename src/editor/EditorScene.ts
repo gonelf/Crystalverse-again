@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
-import { solariaAvailable, SOLARIA_IMAGE, SOLARIA_TILESET } from '../graphics/solaria';
+import {
+  applySolariaPieceTextures,
+  solariaAvailable,
+  SOLARIA_IMAGE,
+  SOLARIA_TILESET,
+} from '../graphics/solaria';
 import { createGeneratedTextures, TEXTURES } from '../graphics/textures';
 import {
   buildLevel,
@@ -75,6 +80,7 @@ export class EditorScene extends Phaser.Scene {
 
   create(): void {
     createGeneratedTextures(this);
+    applySolariaPieceTextures(this);
     this.file = clone(getLevelFile(this.id) ?? blank());
     this.brushes = brushesFor(this.file.tileset);
 

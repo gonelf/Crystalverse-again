@@ -79,11 +79,13 @@ id, and the file holds everything the game needs — no code changes to add one:
   `solaria-outdoors`; see **Solaria art**. The same layout character means the
   matching thing in each: `.` floor or grass, `#` carved wall or bush, `,`
   decoration (vines underground, tufts outdoors), `=` a plaza the viewports
-  merge over. Outdoors adds `~` water, `T` tree and `^` rock; the temples add
-  `;` a carved glyph, `*` a lit brazier, `w` a paved floor, and `u` urn,
-  `s` shrine, `n` anvil and `h` hearth as props that block the way. Because
-  every character keeps its footprint in each set — trees included — a level
-  can switch art without a tile of its collision moving.
+  merge over. Outdoors adds `~` water, `T` tree and `^` rock. The temples add
+  `;` a carved glyph, `*` a lit brazier, `w` a paved floor, `r` bones lying on
+  it, and `u` urn, `s` shrine, `n` anvil, `h` hearth and `k` chest as props
+  that block the way, plus `t` a banner and `m` a niche, which are painted on
+  a wall tile rather than a floor one. Because every character keeps its
+  footprint in each set — trees included — a level can switch art without a
+  tile of its collision moving.
 - Pieces are `1`/`2` player spawns, `o` crate, `a`..`f` plates with `A`..`F`
   as the door each group opens, `g`/`v` green and purple slimes.
 - `X`, `Y`, `Z` mark exits. Each one's entry in `exits` says which level it
@@ -99,8 +101,11 @@ id, and the file holds everything the game needs — no code changes to add one:
   declare beyond the flag. The view cuts to the next room only once *both*
   players are through the door, and the viewport is sized to the room rather
   than the window, so a room that isn't the window's shape is letterboxed
-  instead of letting the next room show past its walls. Rooms of 20x11 tiles,
-  walls included, fill the window exactly; the vault is built from four of them.
+  instead of letting the next room show past its walls. Two tiles of wall are
+  kept inside the frame, so walls read as a thickness rather than a line —
+  which makes 23x13 the shape that fills the window, from a 19x9 floor. The
+  vault is built from four of those, with shared walls two tiles thick and
+  doorways two tiles wide so they pierce them.
 
 ## Solaria art
 
@@ -113,6 +118,12 @@ not in this repository. It is dropped in locally instead:
 2. Put its tile sheet at `public/assets/solaria/tiles.png`.
 
 `public/assets/solaria/` is git-ignored, so the file never gets committed.
+
+Where the pack has art for something the game draws as a sprite rather than a
+tile, it is cut out of the sheet under the same texture key —
+`applySolariaPieceTextures` does this for the pressure plate, raised and sunk —
+so everything that draws a plate keeps working, group tint included, and only
+the picture changes.
 
 Nothing breaks without it. At startup the game asks the server whether the file
 is there; if it isn't, every level asking for `solaria` is drawn with the

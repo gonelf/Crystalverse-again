@@ -100,6 +100,37 @@ const DUNGEON_TERRAIN: Record<string, Terrain> = {
     color: '#2f9e79',
     key: '7',
   },
+  // The props below have richer art in the Solaria set. They are here too, with
+  // the same footprint, so a level keeps its walls and floors either way.
+  w: { label: 'Paved floor', ground: [DUNGEON_TILES.plaza], color: '#5c7f74', key: '8' },
+  u: {
+    label: 'Urn',
+    ground: [DUNGEON_TILES.floor],
+    solid: [DUNGEON_TILES.wall],
+    color: '#b08b5a',
+    key: '9',
+  },
+  s: {
+    label: 'Shrine',
+    ground: [DUNGEON_TILES.floor],
+    solid: [DUNGEON_TILES.brazier],
+    color: '#ffb457',
+    key: '0',
+  },
+  n: {
+    label: 'Anvil',
+    ground: [DUNGEON_TILES.floor],
+    solid: [DUNGEON_TILES.wall],
+    color: '#8d8d99',
+    key: 'j',
+  },
+  h: {
+    label: 'Hearth',
+    ground: [DUNGEON_TILES.floor],
+    solid: [DUNGEON_TILES.wall],
+    color: '#5a3a30',
+    key: 'k',
+  },
 };
 
 
@@ -139,26 +170,60 @@ const SOLARIA_TERRAIN: Record<string, Terrain> = {
   },
   ' ': { label: 'Void', ground: [S.void], solid: [S.void], color: '#120f14', key: '6' },
   '=': { label: 'Plaza (merge)', ground: [...S.plaza], mergeZone: true, color: '#b4c5c1', key: '7' },
+  w: { label: 'Paved floor', ground: [...S.paved], color: '#e0b48f', key: '8' },
+  u: { label: 'Urn', ground: [...S.floor], solid: [S.urn], color: '#b08b5a', key: '9' },
+  s: { label: 'Shrine', ground: [...S.floor], solid: [S.shrine], color: '#ffb457', key: '0' },
+  n: { label: 'Anvil', ground: [...S.floor], solid: [S.anvil], color: '#8d8d99', key: 'j' },
+  h: { label: 'Hearth', ground: [...S.floor], solid: [S.hearth], color: '#5a3a30', key: 'k' },
+};
+
+/**
+ * The same pack above ground. Every character keeps the footprint it has in
+ * `overworld`, trees included, so the meadows can switch art without a single
+ * tile of collision moving.
+ */
+const SOLARIA_OUTDOORS_TERRAIN: Record<string, Terrain> = {
+  '.': { label: 'Grass', ground: [...S.grass], color: '#2eb85c', key: '1' },
+  ',': { label: 'Tufts', ground: [...S.grass], decor: [...S.tufts], color: '#7fc14a', key: '2' },
+  '#': { label: 'Bush', ground: [...S.grass], solid: [S.bush], color: '#1e8b55', key: '3' },
+  T: {
+    label: 'Tree',
+    ground: [...S.grass],
+    block: S.tree.map((row) => [...row]),
+    color: '#166b3f',
+    key: '4',
+  },
+  '^': { label: 'Rock', ground: [...S.grass], solid: [...S.rock], color: '#d09a5a', key: '5' },
+  '~': { label: 'Water', ground: [...S.grass], solid: [...S.water], color: '#4d9be6', key: '6' },
+  '=': { label: 'Plaza (merge)', ground: [...S.plaza], mergeZone: true, color: '#b4c5c1', key: '7' },
 };
 
 export const TERRAIN: Record<TilesetKey, Record<string, Terrain>> = {
   overworld: OVERWORLD_TERRAIN,
   dungeon: DUNGEON_TERRAIN,
   solaria: SOLARIA_TERRAIN,
+  'solaria-outdoors': SOLARIA_OUTDOORS_TERRAIN,
 };
 
 /** The character a tileset uses for plain walkable ground. */
 export const FLOOR_CHAR = '.';
 
-export const TILESETS: TilesetKey[] = ['overworld', 'dungeon', 'solaria'];
+export const TILESETS: TilesetKey[] = ['overworld', 'dungeon', 'solaria', 'solaria-outdoors'];
+
+/** What each Solaria set falls back to when its art isn't installed. */
+const FALLBACK: Partial<Record<TilesetKey, TilesetKey>> = {
+  solaria: 'dungeon',
+  'solaria-outdoors': 'overworld',
+};
 
 /**
  * The tileset a level is actually drawn with. Solaria's art is not committed,
- * so a level asking for it falls back to the dungeon's code-drawn tiles
- * wherever the file is missing — a build without it still runs.
+ * so a level asking for it falls back to the matching built-in set wherever
+ * the file is missing — a build without it still runs, and because the two
+ * sets share every character and footprint, it plays identically.
  */
 export function effectiveTileset(tileset: TilesetKey): TilesetKey {
-  return tileset === 'solaria' && !solariaAvailable() ? 'dungeon' : tileset;
+  return solariaAvailable() ? tileset : (FALLBACK[tileset] ?? tileset);
 }
 
 /** Image key each tileset's tile indices point into. */
@@ -167,6 +232,7 @@ export function tilesetImage(tileset: TilesetKey): string {
     case 'dungeon':
       return 'dungeon-tiles';
     case 'solaria':
+    case 'solaria-outdoors':
       return 'solaria-tiles';
     default:
       return 'overworld';

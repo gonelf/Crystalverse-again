@@ -74,14 +74,16 @@ id, and the file holds everything the game needs — no code changes to add one:
 }
 ```
 
-- `tileset` picks the art: `overworld` (grass, water, trees, plazas),
-  `dungeon` (an Aztec temple drawn in code) or `solaria` (see **Solaria art**).
-  The same layout character means the matching thing in each: `.` floor or
-  grass, `#` carved wall or bush, `,` decoration (vines underground, flowers
-  outdoors), `=` a plaza the viewports merge over. Outdoors adds `~` water,
-  `T` tree and `^` rock; both temple sets add `;` a carved glyph and `*` a lit
-  brazier. Because the characters line up, a level can switch art without its
-  layout changing.
+- `tileset` picks the art. Two sets are underground — `dungeon` (an Aztec
+  temple drawn in code) and `solaria` — and two are above it — `overworld` and
+  `solaria-outdoors`; see **Solaria art**. The same layout character means the
+  matching thing in each: `.` floor or grass, `#` carved wall or bush, `,`
+  decoration (vines underground, tufts outdoors), `=` a plaza the viewports
+  merge over. Outdoors adds `~` water, `T` tree and `^` rock; the temples add
+  `;` a carved glyph, `*` a lit brazier, `w` a paved floor, and `u` urn,
+  `s` shrine, `n` anvil and `h` hearth as props that block the way. Because
+  every character keeps its footprint in each set — trees included — a level
+  can switch art without a tile of its collision moving.
 - Pieces are `1`/`2` player spawns, `o` crate, `a`..`f` plates with `A`..`F`
   as the door each group opens, `g`/`v` green and purple slimes.
 - `X`, `Y`, `Z` mark exits. Each one's entry in `exits` says which level it
@@ -109,10 +111,19 @@ is there; if it isn't, every level asking for `solaria` is drawn with the
 code-drawn `dungeon` tiles instead, and the editor's checks say so. That is what
 a fresh clone and the deployed build do, since neither has the art.
 
+`solaria-outdoors` draws the same pack above ground, and falls back to
+`overworld` the same way. The meadows stay on their CC0 pack for now: the free
+Solaria downloads are sample sheets, and their grass is a flat fill whose
+variety lives in the paid Exteriors set, so the CC0 pack still looks better
+outdoors. Switching a level over is one dropdown in the editor's **Settings**,
+so it is worth another look if the full set ever lands.
+
 Swapping in another sheet from the same collection — the paid
 [Mesoamerican Dungeon](https://jamiebrownhill.itch.io/world-of-solaria-mesoamerican-dungeon-tileset)
-tileset is the closest match for the vault — means replacing that one file and
-the tile indices in `src/graphics/solaria.ts`. Everything else stays put.
+tileset is the closest match for the vault, and
+[Exteriors](https://jamiebrownhill.itch.io/solaria-exteriors) for the meadows —
+means replacing that one file and the tile indices in
+`src/graphics/solaria.ts`. Everything else stays put.
 
 ## The editor
 
